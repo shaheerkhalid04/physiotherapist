@@ -1,36 +1,178 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Remote post-operative hand and upper limb physiotherapy
 
-## Getting Started
+A web application that lets post-operative hand and upper limb patients carry out
+surgeon-prescribed rehabilitation at home, log range of motion and pain, and be monitored
+remotely, so they travel to hospital only when clinically necessary.
 
-First, run the development server:
+## Clinical governance, read this first
+
+**This software has not been reviewed, validated or approved for clinical use.**
+
+1. **The protocol library is a set of drafts.** All fifteen templates seed with
+   `reviewedBy: null` and status `DRAFT`. They are structured drafts of commonly described
+   regimes, written so the department has something concrete to correct. Every phase
+   boundary, dosage and precaution in them is a question, not an answer. A named surgeon or
+   hand therapist must review and sign off each template in the application before it can
+   reach a patient. The database enforces this: `PatientProtocol.sourceTemplateReviewedById`
+   is `NOT NULL`, so an unreviewed template cannot be assigned.
+
+2. **Alert thresholds are unapproved defaults.** Plateau, non-adherence, splint compliance
+   and CRPS screening thresholds seed unapproved and those rules do not run until a
+   clinician approves them. Urgent rules, meaning suspected tendon rupture, infection,
+   neurovascular compromise and a patient-raised concern, always run: a missing signature
+   must never silence them. When an urgent alert fires on an unapproved threshold it is
+   labelled as such on the worklist.
+
+3. **Self-measured data is not clinic data.** Every measurement records whether the patient
+   measured it at home with a paper goniometer or a therapist measured it in clinic. Charts,
+   the PDF report and the audit spreadsheet all carry that distinction. Do not pool the two.
+
+4. **Nothing patient-facing is machine-generated clinical advice.** Patient copy comes from
+   a fixed human-written catalogue in `src/i18n/messages.ts` or from the clinician's own
+   prescription text. Any future LLM use is limited to translating clinician-written
+   messages, rephrasing clinician-written text, and summarising logged data for clinicians.
+
+5. **Data residency.** This deploys to Vercel with managed Postgres, which means
+   identifiable patient data and wound photographs sit with third-party cloud providers,
+   likely outside the country of care. That needs departmental and legal sign-off before
+   any real patient use. `src/lib/storage/` is an adapter seam so an on-premises deployment
+   does not require changes to feature code.
+
+6. **Twelve clinical questions are open.** They are listed in [PLAN.md](PLAN.md) section 11
+   and include which Strickland band set the department uses, which Vancouver Scar Scale
+   version, and the numeric plateau and non-adherence thresholds. They change scoring and
+   safety behaviour and have not been guessed at.
+
+7. **The Urdu translation needs a native speaker's review.** It is a working draft.
+
+## Setup
+
+Requirements: Node 20 or newer, Docker Desktop, git.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env
+npm install
+npm run setup
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`npm run setup` starts Postgres in Docker, applies migrations, seeds the department and the
+draft protocol library, then starts the dev server on http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Seeded development accounts:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Role | Sign in with |
+|---|---|
+| Surgeon | `surgeon@example.test` / `development-only` |
+| Therapist | `therapist@example.test` / `development-only` |
+| Administrator | `admin@example.test` / `development-only` |
+| Patient | phone `+920000000010`, PIN `0000` |
 
-## Learn More
+Set `SEED_DEMO_PATIENT=false` to seed a department with no signed-off templates and no
+patient, which is the state a real deployment starts in.
 
-To learn more about Next.js, take a look at the following resources:
+Individual commands:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run db:up        # start Postgres on port 5433
+npm run db:migrate   # apply migrations
+npm run db:seed      # seed department, staff, draft protocols, unapproved thresholds
+npm run db:studio    # browse the database
+npm run test         # unit tests
+npm run test:e2e     # Playwright, needs a seeded database
+npm run typecheck
+npm run lint
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Architecture
 
-## Deploy on Vercel
+Next.js 16 App Router, TypeScript strict, Tailwind v4, Prisma against PostgreSQL, Auth.js,
+Zod at every input boundary, Recharts, Serwist for the service worker, Vitest and Playwright.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The reasoning for Next.js over a client-only SPA is in [PLAN.md](PLAN.md) section 2.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+  app/
+    (patient)/         patient surface, larger type, one-handed layout, RTL aware
+    (clinic)/          risk-sorted worklist and patient timeline
+    api/sync/          offline queue drain, idempotent on client uuid
+    api/export/[kind]/ pdf, docx and xlsx exports
+    sw.ts              service worker
+  lib/
+    clinical/
+      instruments/     pure, versioned scoring. No database, no React, no clock.
+      rules.ts         the entire escalation surface, one declarative file
+    domain/
+      prescription.ts  what a patient may be shown, and when
+      alerts.ts        loads context, runs rules, persists alerts
+      audit.ts         every clinical write
+    offline/queue.ts   IndexedDB outbox
+    sync/contract.ts   shared Zod contract for the drain
+    export/            report, letter and workbook builders
+  i18n/messages.ts     all patient-facing copy, human written
+prisma/
+  schema.prisma        24 tables, clinical rows append-only
+  seed-data/           the fifteen draft protocol templates
+```
+
+### Three structural decisions
+
+**Measurements are one polymorphic, versioned table.** Each row carries `instrumentKey`,
+`instrumentVersion` and a JSONB payload validated by that instrument's schema, so correcting
+a scoring bug ships as a new version and never rewrites history.
+
+**A patient protocol is a deep copy of its template.** Editing a template must not
+retroactively change what a patient currently under treatment is being told to do.
+
+**Clinical writes are append-only.** Nothing is hard-deleted. A correction is a new row
+superseding an older one, and `AuditLog` records actor, action, entity, before and after
+values, IP address and user agent.
+
+### Offline
+
+The patient surface is offline-first. Writes go to an IndexedDB outbox and drain to
+`/api/sync` on reconnect, on focus, and on a timer. Every record carries a device-generated
+UUID with a unique constraint server-side, so a replayed batch upserts and is reported back
+as a duplicate rather than inserted twice. The service worker deliberately does not
+background-replay writes: two independent replay mechanisms would be an efficient way to
+create the duplicate records the acceptance criteria forbid.
+
+## Deployment
+
+1. Provision Postgres and set `DATABASE_URL`.
+2. Set `AUTH_SECRET` (`npx auth secret`), `AUTH_URL`, and `CRON_SECRET`.
+3. Configure the SMS gateway in `src/lib/auth/otp.ts` and set `SMS_PROVIDER`, `SMS_API_KEY`
+   and `SMS_SENDER_ID`. Until then OTP codes are written to the server log and patients must
+   use the PIN fallback.
+4. Set `BLOB_READ_WRITE_TOKEN` for wound photograph storage.
+5. `npx prisma migrate deploy` on release.
+6. Add a Vercel Cron entry hitting `/api/cron/reminders` with the `CRON_SECRET` bearer
+   token. Serverless functions cannot hold a scheduler, so reminders are a queue table
+   drained on a schedule.
+
+## Backup and retention
+
+- Postgres is the system of record. Take daily automated backups with point-in-time
+  recovery, and test a restore before go-live, not after.
+- Nothing is hard-deleted, so backups also need a defined retention period and a documented
+  destruction process. Media retention is open question 10 in [PLAN.md](PLAN.md).
+- `AuditLog` grows monotonically and must be included in backups. It is the record of who
+  did what to a patient's data.
+- Wound photographs live in blob storage, not in Postgres. They need their own backup and
+  their own retention rule.
+
+## Testing
+
+Unit tests cover every scoring function with worked examples named in the test, the
+escalation rules, and the rule that decides what a patient may be shown.
+
+```bash
+npm run test
+```
+
+Playwright covers the offline week, batch replay idempotency, the non-dismissible
+disclaimer, role separation, worklist risk ordering, and an axe pass at WCAG 2.1 AA.
+
+```bash
+npm run db:up && npm run db:migrate && npm run db:seed && npm run test:e2e
+```

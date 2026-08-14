@@ -16,15 +16,25 @@ import { consumeOtp } from "@/lib/auth/otp";
  * on a borrowed handset may not receive an SMS, not because it is good security.
  */
 
+type AppRole = "PATIENT" | "THERAPIST" | "SURGEON" | "ADMIN";
+
 declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      role: "PATIENT" | "THERAPIST" | "SURGEON" | "ADMIN";
+      role: AppRole;
       departmentId: string;
       patientId: string | null;
       language: "EN" | "UR";
     } & DefaultSession["user"];
+  }
+
+  /** What authorize returns, and therefore what the jwt callback receives. */
+  interface User {
+    role: AppRole;
+    departmentId: string;
+    patientId: string | null;
+    language: "EN" | "UR";
   }
 }
 

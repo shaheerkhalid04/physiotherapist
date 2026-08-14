@@ -1,26 +1,124 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/**
+ * Calm, clinical, confident.
+ *
+ * A restrained neutral palette carries the interface. Colour is reserved for clinical
+ * state, so that when something turns amber or red it means something. Alerts always
+ * combine colour with an icon and with text, never colour alone, because a red badge is
+ * invisible to a colour blind surgeon and to a phone screen in Quetta sunlight.
+ *
+ * The patient type scale is deliberately larger than the clinician one. The patient is
+ * middle aged, holding the phone in their non-dominant hand, with a splint on the other.
+ */
+
+@theme {
+  /* Neutrals */
+  --color-canvas: oklch(0.99 0.002 250);
+  --color-surface: oklch(1 0 0);
+  --color-surface-sunken: oklch(0.97 0.004 250);
+  --color-border: oklch(0.9 0.006 250);
+  --color-border-strong: oklch(0.82 0.008 250);
+  --color-ink: oklch(0.24 0.012 260);
+  --color-ink-muted: oklch(0.48 0.012 260);
+  --color-ink-faint: oklch(0.62 0.01 260);
+
+  /* One accent, used for interactive affordance only */
+  --color-accent: oklch(0.52 0.11 235);
+  --color-accent-hover: oklch(0.46 0.115 235);
+  --color-accent-quiet: oklch(0.95 0.025 235);
+
+  /* Clinical state. Never used decoratively. */
+  --color-urgent: oklch(0.52 0.19 25);
+  --color-urgent-quiet: oklch(0.96 0.04 25);
+  --color-review: oklch(0.62 0.14 70);
+  --color-review-quiet: oklch(0.96 0.05 80);
+  --color-outreach: oklch(0.58 0.09 275);
+  --color-outreach-quiet: oklch(0.96 0.03 275);
+  --color-ontrack: oklch(0.52 0.1 155);
+  --color-ontrack-quiet: oklch(0.95 0.04 155);
+
+  /* Measurement provenance. Self-measured data is drawn differently from clinic data. */
+  --color-self-measured: oklch(0.62 0.09 235);
+  --color-clinic-measured: oklch(0.38 0.12 260);
+
+  --font-sans: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-urdu: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", ui-sans-serif, system-ui;
+
+  --radius-card: 0.75rem;
+  --radius-control: 0.5rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --color-canvas: oklch(0.19 0.012 260);
+    --color-surface: oklch(0.23 0.013 260);
+    --color-surface-sunken: oklch(0.17 0.012 260);
+    --color-border: oklch(0.32 0.014 260);
+    --color-border-strong: oklch(0.42 0.016 260);
+    --color-ink: oklch(0.95 0.006 260);
+    --color-ink-muted: oklch(0.75 0.01 260);
+    --color-ink-faint: oklch(0.6 0.01 260);
+    --color-accent-quiet: oklch(0.3 0.05 235);
+    --color-urgent-quiet: oklch(0.3 0.07 25);
+    --color-review-quiet: oklch(0.3 0.06 80);
+    --color-outreach-quiet: oklch(0.28 0.04 275);
+    --color-ontrack-quiet: oklch(0.28 0.05 155);
+    color-scheme: dark;
   }
 }
 
+html {
+  background: var(--color-canvas);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+[lang="ur"] body,
+[lang="ur"] {
+  font-family: var(--font-urdu);
+  line-height: 2;
+}
+
+/* The patient surface. Larger everything, one handed reach, generous targets. */
+.patient-scope {
+  font-size: 1.125rem;
+}
+
+.patient-scope button,
+.patient-scope [role="button"],
+.patient-scope a {
+  min-height: 3rem;
+  min-width: 3rem;
+}
+
+/* Controls a patient uses while holding the phone one handed sit within thumb reach. */
+.thumb-zone {
+  position: sticky;
+  bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0.5rem);
+  background: linear-gradient(to top, var(--color-canvas) 70%, transparent);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
