@@ -1,0 +1,655 @@
+// Remote post-operative hand and upper limb physiotherapy application.
+//
+// Two rules govern this schema and are enforced structurally, not by convention:
+//
+//   1. Clinical data is append-only. There are no destructive updates and no cascade
+//      deletes on clinical rows. A correction is a new row pointing at the row it
+//      supersedes.
+//   2. A protocol reaches a patient only by being copied. PatientProtocol carries
+//      sourceTemplateReviewedById as NOT NULL, so an unreviewed template physically
+//      cannot be assigned.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma 7 moved the connection URL out of the schema. It lives in prisma.config.ts for
+// migration commands, and reaches the client through a driver adapter in src/lib/db.ts.
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  PATIENT
+  THERAPIST
+  SURGEON
+  ADMIN
+}
+
+enum Sex {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum Side {
+  LEFT
+  RIGHT
+  BILATERAL
+}
+
+enum Dominance {
+  LEFT
+  RIGHT
+  AMBIDEXTROUS
+}
+
+enum Language {
+  EN
+  UR
+}
+
+/// Who produced a measurement. Self-measured and clinic-measured values are not
+/// equivalent evidence and are never rendered identically.
+enum MeasurementMethod {
+  SELF
+  CLINIC
+}
+
+enum SessionStatus {
+  PENDING
+  COMPLETE
+  PARTIAL
+  MISSED
+}
+
+enum ExerciseLogStatus {
+  DONE
+  PARTIAL
+  NOT_DONE
+}
+
+enum NotDoneReason {
+  PAIN
+  SWELLING
+  TOO_DIFFICULT
+  FORGOT
+  NO_TIME
+  SPLINT_PROBLEM
+  UNWELL
+  OTHER
+}
+
+enum OrthosisCompliance {
+  WORN_AS_INSTRUCTED
+  WORN_PARTIALLY
+  NOT_WORN
+  NOT_APPLICABLE
+}
+
+enum TemplateStatus {
+  DRAFT
+  UNDER_REVIEW
+  APPROVED
+  RETIRED
+}
+
+enum AlertSeverity {
+  URGENT
+  REVIEW
+  OUTREACH
+}
+
+enum AlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum MediaKind {
+  PHOTO
+  VIDEO
+}
+
+enum PromInstrument {
+  QUICKDASH
+  PRWHE
+}
+
+// ---------------------------------------------------------------------------
+// Organisation and identity
+// ---------------------------------------------------------------------------
+
+model Department {
+  id              String    @id @default(uuid())
+  name            String
+  hospital        String
+  contactPhone    String
+  travelNote      String    @db.Text
+  timezone        String    @default("Asia/Karachi")
+  createdAt       DateTime  @default(now())
+
+  users           User[]
+  patients        Patient[]
+  templates       ProtocolTemplate[]
+  thresholds      AlertThreshold[]
+}
+
+model User {
+  id            String     @id @default(uuid())
+  departmentId  String
+  department    Department @relation(fields: [departmentId], references: [id])
+  role          Role
+  name          String
+  phone         String     @unique
+  email         String?    @unique
+  /// Argon2/bcrypt hash. Null for patients who authenticate by OTP alone.
+  passwordHash  String?
+  /// Low-literacy fallback for shared handsets. Never a substitute for OTP on first login.
+  pinHash       String?
+  language      Language   @default(EN)
+  active        Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+
+  patient           Patient?          @relation("PatientAccount")
+  enrolledPatients  Patient[]         @relation("EnrollingClinician")
+  reviewedTemplates ProtocolTemplate[] @relation("TemplateReviewer")
+  assignedProtocols PatientProtocol[]  @relation("ProtocolAssigner")
+  approvedTransitions PhaseTransition[] @relation("TransitionApprover")
+  enteredMeasurements Measurement[]     @relation("MeasurementAuthor")
+  acknowledgedAlerts  Alert[]           @relation("AlertAcknowledger")
+  sentMessages        Message[]         @relation("MessageSender")
+  approvedThresholds  AlertThreshold[]  @relation("ThresholdApprover")
+  uploads             MediaUpload[]     @relation("MediaUploader")
+  auditEntries        AuditLog[]
+
+  @@index([departmentId, role])
+}
+
+model Patient {
+  id            String     @id @default(uuid())
+  departmentId  String
+  department    Department @relation(fields: [departmentId], references: [id])
+  /// Hospital medical record number. Unique within a department, not globally.
+  mrn           String
+  userId        String?    @unique
+  user          User?      @relation("PatientAccount", fields: [userId], references: [id])
+  enrolledById  String
+  enrolledBy    User       @relation("EnrollingClinician", fields: [enrolledById], references: [id])
+
+  name          String
+  dateOfBirth   DateTime?
+  age           Int?
+  sex           Sex
+  phone         String
+  operatedSide  Side
+  dominance     Dominance
+  language      Language   @default(UR)
+  createdAt     DateTime   @default(now())
+
+  operation     Operation?
+  protocols     PatientProtocol[]
+  sessions      Session[]
+  measurements  Measurement[]
+  promResponses PromResponse[]
+  symptomLogs   SymptomLog[]
+  media         MediaUpload[]
+  alerts        Alert[]
+  messages      Message[]
+  reminders     ReminderJob[]
+
+  @@unique([departmentId, mrn])
+  @@index([departmentId])
+}
+
+model Operation {
+  id              String   @id @default(uuid())
+  patientId       String   @unique
+  patient         Patient  @relation(fields: [patientId], references: [id])
+
+  procedure       String
+  dateOfSurgery   DateTime
+  /// Free-form structured detail: tendon zone, nerve, bone, joint, graft, flap.
+  structures      Json
+  fixation        String?
+  /// Surgeon-specific precautions that override anything in the protocol template.
+  precautions     String?  @db.Text
+  operatingSurgeon String
+  recordedAt      DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Protocol library
+// ---------------------------------------------------------------------------
+
+model ProtocolTemplate {
+  id            String         @id @default(uuid())
+  departmentId  String
+  department    Department     @relation(fields: [departmentId], references: [id])
+  key           String
+  name          String
+  indication    String         @db.Text
+  version       Int            @default(1)
+  status        TemplateStatus @default(DRAFT)
+  source        String?        @db.Text
+
+  /// Null until a clinician signs the template off. An unreviewed template cannot be
+  /// assigned: see PatientProtocol.sourceTemplateReviewedById.
+  reviewedById  String?
+  reviewedBy    User?          @relation("TemplateReviewer", fields: [reviewedById], references: [id])
+  reviewedAt    DateTime?
+
+  createdAt     DateTime       @default(now())
+  phases        ProtocolPhase[]
+  assignments   PatientProtocol[]
+
+  @@unique([departmentId, key, version])
+}
+
+model ProtocolPhase {
+  id                  String   @id @default(uuid())
+  templateId          String
+  template            ProtocolTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  order               Int
+  name                String
+  weekStart           Int
+  weekEnd             Int
+  goals               String   @db.Text
+  permittedMovements  String[]
+  forbiddenMovements  String[]
+  orthosis            String?  @db.Text
+  orthosisSchedule    String?  @db.Text
+  progressionCriteria String   @db.Text
+  redFlags            String[]
+
+  exercises           ProtocolExercise[]
+
+  @@unique([templateId, order])
+}
+
+model ProtocolExercise {
+  id              String   @id @default(uuid())
+  phaseId         String
+  phase           ProtocolPhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  order           Int
+  name            String
+  instruction     String   @db.Text
+  sets            Int
+  reps            Int
+  holdSeconds     Int      @default(0)
+  frequencyPerDay Int
+  /// Key into the media bucket for the looping demonstration clip.
+  mediaKey        String?
+
+  @@unique([phaseId, order])
+}
+
+// ---------------------------------------------------------------------------
+// Per-patient prescription. A deep copy of the template at assignment time.
+// ---------------------------------------------------------------------------
+
+model PatientProtocol {
+  id                        String   @id @default(uuid())
+  patientId                 String
+  patient                   Patient  @relation(fields: [patientId], references: [id])
+  sourceTemplateId          String
+  sourceTemplate            ProtocolTemplate @relation(fields: [sourceTemplateId], references: [id])
+  sourceTemplateVersion     Int
+  /// Denormalised from the template on purpose. NOT NULL is what physically prevents an
+  /// unreviewed template from being assigned to a patient.
+  sourceTemplateReviewedById String
+  assignedById              String
+  assignedBy                User     @relation("ProtocolAssigner", fields: [assignedById], references: [id])
+  assignedAt                DateTime @default(now())
+  active                    Boolean  @default(true)
+  surgeonNotes              String?  @db.Text
+
+  phases                    PatientPhase[]
+  transitions               PhaseTransition[]
+
+  @@index([patientId, active])
+}
+
+model PatientPhase {
+  id                  String   @id @default(uuid())
+  protocolId          String
+  protocol            PatientProtocol @relation(fields: [protocolId], references: [id])
+  order               Int
+  name                String
+  weekStart           Int
+  weekEnd             Int
+  goals               String   @db.Text
+  permittedMovements  String[]
+  forbiddenMovements  String[]
+  orthosis            String?  @db.Text
+  orthosisSchedule    String?  @db.Text
+  progressionCriteria String   @db.Text
+  redFlags            String[]
+  /// Set only by an approved PhaseTransition. Never set automatically.
+  activeFrom          DateTime?
+  activeTo            DateTime?
+
+  exercises           PatientExercise[]
+  transitionsFrom     PhaseTransition[] @relation("TransitionFrom")
+  transitionsTo       PhaseTransition[] @relation("TransitionTo")
+
+  @@unique([protocolId, order])
+}
+
+model PatientExercise {
+  id              String   @id @default(uuid())
+  phaseId         String
+  phase           PatientPhase @relation(fields: [phaseId], references: [id])
+  order           Int
+  name            String
+  instruction     String   @db.Text
+  sets            Int
+  reps            Int
+  holdSeconds     Int      @default(0)
+  frequencyPerDay Int
+  mediaKey        String?
+
+  logs            ExerciseLog[]
+
+  @@unique([phaseId, order])
+}
+
+/// A phase advances only through one of these rows, and the row cannot exist without a
+/// clinician. The rules engine flags eligibility; it never writes here.
+model PhaseTransition {
+  id            String   @id @default(uuid())
+  protocolId    String
+  protocol      PatientProtocol @relation(fields: [protocolId], references: [id])
+  fromPhaseId   String?
+  fromPhase     PatientPhase? @relation("TransitionFrom", fields: [fromPhaseId], references: [id])
+  toPhaseId     String
+  toPhase       PatientPhase  @relation("TransitionTo", fields: [toPhaseId], references: [id])
+  approvedById  String
+  approvedBy    User     @relation("TransitionApprover", fields: [approvedById], references: [id])
+  approvedAt    DateTime @default(now())
+  reason        String?  @db.Text
+  denied        Boolean  @default(false)
+}
+
+// ---------------------------------------------------------------------------
+// Patient activity
+// ---------------------------------------------------------------------------
+
+model Session {
+  id           String        @id @default(uuid())
+  /// Client-generated on the device so an offline replay upserts instead of duplicating.
+  clientUuid   String        @unique
+  patientId    String
+  patient      Patient       @relation(fields: [patientId], references: [id])
+  scheduledFor DateTime
+  postOpDay    Int
+  status       SessionStatus @default(PENDING)
+  startedAt    DateTime?
+  completedAt  DateTime?
+  orthosis     OrthosisCompliance @default(NOT_APPLICABLE)
+  createdAt    DateTime      @default(now())
+  /// When the record reached the server, as opposed to when the patient recorded it.
+  syncedAt     DateTime?
+
+  exerciseLogs ExerciseLog[]
+  measurements Measurement[]
+  symptomLog   SymptomLog?
+  media        MediaUpload[]
+
+  @@index([patientId, scheduledFor])
+}
+
+model ExerciseLog {
+  id         String            @id @default(uuid())
+  clientUuid String            @unique
+  sessionId  String
+  session    Session           @relation(fields: [sessionId], references: [id])
+  exerciseId String
+  exercise   PatientExercise   @relation(fields: [exerciseId], references: [id])
+  status     ExerciseLogStatus
+  reason     NotDoneReason?
+  reasonText String?
+  setsDone   Int?
+  repsDone   Int?
+  recordedAt DateTime
+  syncedAt   DateTime?
+
+  @@index([sessionId])
+}
+
+/// Pain, swelling, stiffness and the red-flag symptom booleans the rules engine reads.
+model SymptomLog {
+  id                String   @id @default(uuid())
+  clientUuid        String   @unique
+  patientId         String
+  patient           Patient  @relation(fields: [patientId], references: [id])
+  sessionId         String?  @unique
+  session           Session? @relation(fields: [sessionId], references: [id])
+  recordedAt        DateTime
+  postOpDay         Int
+
+  painAtRest        Int
+  painOnMovement    Int
+  /// Three-point scales: 0 none, 1 moderate, 2 severe.
+  swelling          Int
+  stiffness         Int
+
+  fever             Boolean  @default(false)
+  spreadingRedness  Boolean  @default(false)
+  discharge         Boolean  @default(false)
+  numbness          Boolean  @default(false)
+  colourChange      Boolean  @default(false)
+  coldIntolerance   Boolean  @default(false)
+  temperatureChange Boolean  @default(false)
+  /// Raised by the patient-facing "Something is wrong" control.
+  patientConcern    Boolean  @default(false)
+  concernText       String?  @db.Text
+
+  syncedAt          DateTime?
+
+  @@index([patientId, recordedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Measurement
+// ---------------------------------------------------------------------------
+
+/// One polymorphic table rather than one per instrument. The payload is validated by the
+/// Zod schema belonging to instrumentKey at instrumentVersion, so a later scoring
+/// correction never silently rewrites historical results.
+model Measurement {
+  id                String            @id @default(uuid())
+  clientUuid        String            @unique
+  patientId         String
+  patient           Patient           @relation(fields: [patientId], references: [id])
+  sessionId         String?
+  session           Session?          @relation(fields: [sessionId], references: [id])
+
+  instrumentKey     String
+  instrumentVersion Int
+  payload           Json
+  /// Primary derived scalar, denormalised for charting and rule evaluation.
+  value             Float?
+  /// Secondary derived values, for example per-digit TAM or a Strickland grade.
+  derived           Json?
+
+  recordedAt        DateTime
+  postOpDay         Int
+  enteredById       String
+  enteredBy         User              @relation("MeasurementAuthor", fields: [enteredById], references: [id])
+  enteredByRole     Role
+  method            MeasurementMethod
+  side              Side
+  /// Append-only correction chain. Never update or delete a superseded row.
+  supersedesId      String?           @unique
+  supersedes        Measurement?      @relation("Supersedes", fields: [supersedesId], references: [id])
+  supersededBy      Measurement?      @relation("Supersedes")
+  /// Warnings raised by plausibility checks. Recorded, never blocking.
+  warnings          String[]
+  syncedAt          DateTime?
+
+  @@index([patientId, instrumentKey, recordedAt])
+}
+
+model PromResponse {
+  id             String         @id @default(uuid())
+  clientUuid     String         @unique
+  patientId      String
+  patient        Patient        @relation(fields: [patientId], references: [id])
+  instrument     PromInstrument
+  /// Item-level responses are stored, not just the total, because a total alone cannot be
+  /// re-scored or audited.
+  itemResponses  Json
+  score          Float?
+  subscores      Json?
+  scheduledFor   DateTime
+  completedAt    DateTime?
+  postOpDay      Int?
+  syncedAt       DateTime?
+
+  @@index([patientId, instrument, scheduledFor])
+}
+
+model MediaUpload {
+  id           String    @id @default(uuid())
+  clientUuid   String    @unique
+  patientId    String
+  patient      Patient   @relation(fields: [patientId], references: [id])
+  sessionId    String?
+  session      Session?  @relation(fields: [sessionId], references: [id])
+  kind         MediaKind
+  storageKey   String
+  mimeType     String
+  bytes        Int
+  uploadedById String
+  uploadedBy   User      @relation("MediaUploader", fields: [uploadedById], references: [id])
+  recordedAt   DateTime
+  syncedAt     DateTime?
+
+  @@index([patientId, recordedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Safety
+// ---------------------------------------------------------------------------
+
+model Alert {
+  id               String        @id @default(uuid())
+  patientId        String
+  patient          Patient       @relation(fields: [patientId], references: [id])
+  ruleKey          String
+  severity         AlertSeverity
+  status           AlertStatus   @default(OPEN)
+  raisedAt         DateTime      @default(now())
+  /// The evidence the rule fired on, retained so a clinician can see why.
+  context          Json
+  /// Deduplication handle: one open alert per rule per patient per window.
+  dedupeKey        String
+  acknowledgedById String?
+  acknowledgedBy   User?         @relation("AlertAcknowledger", fields: [acknowledgedById], references: [id])
+  acknowledgedAt   DateTime?
+  resolution       String?       @db.Text
+  patientNotified  Boolean       @default(false)
+
+  @@unique([dedupeKey])
+  @@index([patientId, status, severity])
+}
+
+/// Rule thresholds are configuration, not code constants, and are inert until a named
+/// clinician approves them.
+model AlertThreshold {
+  id            String     @id @default(uuid())
+  departmentId  String
+  department    Department @relation(fields: [departmentId], references: [id])
+  ruleKey       String
+  /// Null means the threshold applies to every protocol in the department.
+  protocolKey   String?
+  params        Json
+  rationale     String     @db.Text
+  approvedById  String?
+  approvedBy    User?      @relation("ThresholdApprover", fields: [approvedById], references: [id])
+  approvedAt    DateTime?
+  createdAt     DateTime   @default(now())
+
+  @@unique([departmentId, ruleKey, protocolKey])
+}
+
+model Message {
+  id          String   @id @default(uuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  senderId    String
+  sender      User     @relation("MessageSender", fields: [senderId], references: [id])
+  templateKey String?
+  bodyEn      String   @db.Text
+  bodyUr      String?  @db.Text
+  /// True when an LLM produced the Urdu rendering of clinician-authored English text.
+  urMachineTranslated Boolean @default(false)
+  sentAt      DateTime @default(now())
+  readAt      DateTime?
+
+  @@index([patientId, sentAt])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  actorRole  Role?
+  action     String
+  entity     String
+  entityId   String
+  before     Json?
+  after      Json?
+  ip         String?
+  userAgent  String?
+  at         DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([at])
+}
+
+// ---------------------------------------------------------------------------
+// Infrastructure
+// ---------------------------------------------------------------------------
+
+model OtpCode {
+  id         String   @id @default(uuid())
+  phone      String
+  codeHash   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([phone, expiresAt])
+}
+
+/// Reminder queue drained by Vercel Cron, because a serverless deployment cannot hold a
+/// long-lived in-process scheduler.
+model ReminderJob {
+  id        String   @id @default(uuid())
+  patientId String
+  patient   Patient  @relation(fields: [patientId], references: [id])
+  kind      String
+  dueAt     DateTime
+  sentAt    DateTime?
+  failedAt  DateTime?
+  error     String?
+
+  @@index([dueAt, sentAt])
+}
+
+/// Receipt log for the offline drain. Idempotency is enforced by the per-table clientUuid
+/// unique constraints; this table exists so a failed batch can be diagnosed.
+model SyncReceipt {
+  id          String   @id @default(uuid())
+  batchUuid   String   @unique
+  patientId   String
+  recordCount Int
+  accepted    Int
+  duplicates  Int
+  rejected    Int
+  detail      Json?
+  receivedAt  DateTime @default(now())
+}

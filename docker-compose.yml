@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: physio_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: physio
+      POSTGRES_PASSWORD: physio
+      POSTGRES_DB: physio
+    ports:
+      - "5433:5432"
+    volumes:
+      - physio_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U physio -d physio"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  physio_pgdata:
