@@ -7,6 +7,7 @@ import {
   type SymptomSnapshot,
 } from "@/lib/clinical/rules";
 import { activePhase, postOpDay } from "@/lib/domain/prescription";
+import { notifyUrgentAlert, urgentRecipients } from "@/lib/notify/email";
 
 /**
  * Loads a patient's recent history, runs the pure rules engine over it, and persists any
@@ -82,7 +83,7 @@ export async function evaluatePatient(patientId: string): Promise<number> {
     const existing = await prisma.alert.findUnique({ where: { dedupeKey: hit.dedupeKey } });
     if (existing) continue;
 
-    await prisma.alert.create({
+    const alert = await prisma.alert.create({
       data: {
         patientId,
         ruleKey: hit.ruleKey,
@@ -93,6 +94,28 @@ export async function evaluatePatient(patientId: string): Promise<number> {
       },
     });
     created += 1;
+
+    // An alert nobody is looking at is not an escalation. Urgent ones reach the department
+    // by email as well as by the worklist. A failure to send is logged, never swallowed,
+    // because the worst outcome is the department believing it has been told when it has
+    // not.
+    if (hit.severity === "URGENT") {
+      const recipients = await urgentRecipients(patient.departmentId);
+      await notifyUrgentAlert(
+        {
+          alertId: alert.id,
+          mrn: patient.mrn,
+          ruleKey: hit.ruleKey,
+          severity: hit.severity,
+          postOpDay: ctx.postOpDay,
+          thresholdUnapproved: hit.thresholdUnapproved,
+        },
+        recipients,
+      ).catch((error) => {
+        console.error(`[alerts] notification failed for ${alert.id}`, error);
+        return { sent: false };
+      });
+    }
   }
 
   return created;

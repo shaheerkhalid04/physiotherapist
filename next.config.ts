@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import withSerwistInit from "@serwist/next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 /**
  * Next 16 runs Turbopack by default. @serwist/next is a webpack plugin and has no stable
@@ -22,4 +23,16 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@prisma/client", "exceljs"],
 };
 
-export default withSerwist(nextConfig);
+export default withSentryConfig(withSerwist(nextConfig), {
+  silent: !process.env.CI,
+  // Source map upload needs an auth token. Without one the build still succeeds and errors
+  // still report, they are just harder to read.
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  disableLogger: true,
+  widenClientFileUpload: true,
+  // Routes Sentry's own requests through the app, so an ad blocker on a patient's phone
+  // cannot silently suppress error reporting.
+  tunnelRoute: "/monitoring",
+});

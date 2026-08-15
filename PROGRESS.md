@@ -132,3 +132,11 @@ the device is primed by the first online visit and works offline from then on.
   creates the scheduled rows.
 - Admin user management and the audit log viewer are not built.
 
+## Notes
+
+- Every UI component is hand-written on shadcn/ui primitives rather than generated. The
+  design follows the direction in the brief: a restrained palette, one accent reserved for
+  clinical state, alerts carrying colour and icon and text rather than colour alone, and a
+  larger type scale on the patient side.
+- The Urdu strings in `src/i18n/messages.ts` are a working draft and need review by a native
+  speaker before clinical use.
