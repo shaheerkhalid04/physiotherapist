@@ -83,8 +83,27 @@ export async function notifyUrgentAlert(
   return { sent: true, id: data?.id };
 }
 
-/** Clinicians in a department who should receive urgent notifications. */
+/**
+ * Clinicians in a department who should receive urgent notifications.
+ *
+ * ALERT_EMAIL_OVERRIDE redirects every notification to a single address. It exists because
+ * the seeded demo staff use the reserved example.test domain, which by definition cannot
+ * receive mail, so on a demo deployment the notification path would look broken when it was
+ * in fact working correctly and being refused by the mail provider.
+ *
+ * It is a demo affordance and must be unset in a real deployment, where sending every
+ * patient's urgent alerts to one inbox would be both wrong and a disclosure risk. The
+ * override is logged on every send so it cannot be in force unnoticed.
+ */
 export async function urgentRecipients(departmentId: string): Promise<string[]> {
+  const override = process.env.ALERT_EMAIL_OVERRIDE?.trim();
+  if (override) {
+    console.warn(
+      `[notify] ALERT_EMAIL_OVERRIDE is set, routing all urgent alerts to ${override} instead of the department`,
+    );
+    return [override];
+  }
+
   const staff = await prisma.user.findMany({
     where: {
       departmentId,
