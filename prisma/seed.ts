@@ -19,6 +19,16 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
+  // Idempotent by design, so it is safe to run on every deploy. Seeding a database that
+  // already holds patients would duplicate a department and, worse, look like it had
+  // worked. Re-seeding is a decision, not a side effect of a build.
+  const existing = await prisma.department.count();
+  if (existing > 0) {
+    console.log(`Database already seeded (${existing} department(s)). Nothing to do.`);
+    await summary();
+    return;
+  }
+
   console.log("Seeding department and staff");
 
   const department = await prisma.department.create({
