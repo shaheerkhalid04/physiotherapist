@@ -32,7 +32,11 @@ async function main() {
     },
   });
 
-  const passwordHash = await bcrypt.hash("development-only", 10);
+  // The default is fine on a laptop and not on a public URL. A deployed demo sets
+  // SEED_STAFF_PASSWORD so the credentials are not the ones printed in the README.
+  const staffPassword = process.env.SEED_STAFF_PASSWORD ?? "development-only";
+  const patientPin = process.env.SEED_PATIENT_PIN ?? "0000";
+  const passwordHash = await bcrypt.hash(staffPassword, 10);
 
   const surgeon = await prisma.user.create({
     data: {
@@ -175,7 +179,7 @@ async function main() {
       name: "Demo Patient",
       phone: "+920000000010",
       language: "UR",
-      pinHash: await bcrypt.hash("0000", 10),
+      pinHash: await bcrypt.hash(patientPin, 10),
     },
   });
 

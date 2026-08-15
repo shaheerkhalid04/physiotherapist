@@ -55,3 +55,6 @@ public/swe-worker-*.js
 
 # local only, not for a public repo
 /SUBMISSION.md
+
+# Sentry Config File
+.env.sentry-build-plugin

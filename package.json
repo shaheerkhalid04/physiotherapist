@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "cross-env SERWIST_SUPPRESS_TURBOPACK_WARNING=1 next build --webpack",
+    "build": "prisma migrate deploy && cross-env SERWIST_SUPPRESS_TURBOPACK_WARNING=1 next build --webpack",
+    "build:app": "cross-env SERWIST_SUPPRESS_TURBOPACK_WARNING=1 next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",

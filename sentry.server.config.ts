@@ -3,17 +3,24 @@ import * as Sentry from "@sentry/nextjs";
 /**
  * Server-side error reporting.
  *
- * `sendDefaultPii` is off and stays off. This application handles medical record numbers,
- * wound photographs and free text a patient wrote about their own hand; none of that belongs
- * in a third-party error tracker. The scrubbing below is a second line of defence in case a
- * future breadcrumb carries something it should not.
+ * See src/instrumentation-client.ts for why the defaults are overridden. The short version:
+ * this application handles medical record numbers, wound photographs, pain scores and free
+ * text a patient wrote about their own hand, and none of it belongs in a third-party error
+ * tracker. `enableLogs` in particular would forward the console, and the OTP path logs
+ * passcodes and phone numbers when no SMS gateway is configured.
  */
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   enabled: Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN),
+  environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
   tracesSampleRate: 0.1,
   sendDefaultPii: false,
-  environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
+  enableLogs: false,
+
+  dataCollection: {
+    userInfo: false,
+    httpBodies: [],
+  },
 
   beforeSend(event) {
     if (event.request?.cookies) delete event.request.cookies;
