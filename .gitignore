@@ -50,3 +50,8 @@ public/swe-worker-*.js
 /playwright-report/
 /blob-report/
 /tmp-exports/
+.vercel
+.env*
+
+# local only, not for a public repo
+/SUBMISSION.md
