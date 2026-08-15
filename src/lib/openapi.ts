@@ -71,37 +71,42 @@ export const openApiDocument = {
     "/api/assistant": {
       post: {
         tags: ["Clinician"],
-        summary: "Machine-written summary of a patient's logged data",
+        summary: "Chat with the data assistant about a patient",
         description:
-          "Clinician only. The model receives a factual digest assembled server-side: measurements, adherence and open alerts. It is never shown the protocol, patient free text or identifying details beyond the MRN, so it cannot recommend an exercise or a phase change. Output is labelled as machine-written wherever it is displayed and is never stored as a clinical record. Every call is audit logged.",
+          "Clinician only, multi-turn, streamed as plain text. The model receives a factual digest assembled server-side: measurements, adherence and open alerts. It is never shown the protocol, patient free text or identifying details beyond the MRN, so it cannot recommend an exercise or a phase change.\n\nThe transcript is supplied by the client and is therefore untrusted. The system prompt is assembled server-side on every request and cannot be replaced; any message claiming a role other than user or assistant is discarded, content is trimmed and length-bounded, and the transcript is capped to the most recent turns.\n\nOutput is labelled machine-written wherever it is displayed, is never stored as a clinical record, and every call is audit logged before the stream is consumed so an abandoned conversation still leaves a record.",
         requestBody: {
           required: true,
           content: {
             "application/json": {
               schema: {
                 type: "object",
-                required: ["patientId"],
-                properties: { patientId: { type: "string", format: "uuid" } },
+                required: ["patientId", "messages"],
+                properties: {
+                  patientId: { type: "string", format: "uuid" },
+                  messages: {
+                    type: "array",
+                    maxItems: 60,
+                    description:
+                      "Conversation so far. Only user and assistant roles survive sanitisation.",
+                    items: {
+                      type: "object",
+                      properties: {
+                        role: { type: "string", enum: ["user", "assistant"] },
+                        content: { type: "string", maxLength: 2000 },
+                      },
+                    },
+                  },
+                },
               },
             },
           },
         },
         responses: {
           "200": {
-            description: "Summary",
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    summary: { type: "string" },
-                    model: { type: "string" },
-                    generatedAt: { type: "string", format: "date-time" },
-                  },
-                },
-              },
-            },
+            description: "Streamed reply as plain text. The model name is in x-assistant-model.",
+            content: { "text/plain": { schema: { type: "string" } } },
           },
+          "400": { description: "No usable message to answer" },
           "401": { description: "Not a staff session" },
           "503": { description: "Assistant not configured or unavailable" },
         },

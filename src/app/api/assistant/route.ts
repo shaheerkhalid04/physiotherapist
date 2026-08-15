@@ -4,7 +4,13 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { activePhase, postOpDay } from "@/lib/domain/prescription";
 import { writeAudit } from "@/lib/domain/audit";
-import { AssistantUnavailable, summarisePatient, type PatientDigest } from "@/lib/ai/assistant";
+import {
+  ASSISTANT_MODEL,
+  AssistantUnavailable,
+  chatStream,
+  sanitiseHistory,
+  type PatientDigest,
+} from "@/lib/ai/assistant";
 
 /**
  * Clinician-only summarisation endpoint.
@@ -19,7 +25,12 @@ import { AssistantUnavailable, summarisePatient, type PatientDigest } from "@/li
 
 const STAFF = new Set(["THERAPIST", "SURGEON", "ADMIN"]);
 
-const bodySchema = z.object({ patientId: z.string().uuid() });
+const bodySchema = z.object({
+  patientId: z.string().uuid(),
+  // Deliberately loose. sanitiseHistory is the gate, not this schema, because a transcript
+  // arriving from a client is untrusted input regardless of whether it parses.
+  messages: z.array(z.unknown()).max(60),
+});
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -30,7 +41,12 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ error: "patientId is required" }, { status: 400 });
+    return NextResponse.json({ error: "patientId and messages are required" }, { status: 400 });
+  }
+
+  const history = sanitiseHistory(parsed.data.messages);
+  if (history.length === 0) {
+    return NextResponse.json({ error: "No usable message to answer" }, { status: 400 });
   }
 
   const patient = await prisma.patient.findFirst({
@@ -84,19 +100,27 @@ export async function POST(request: Request) {
   };
 
   try {
-    const result = await summarisePatient(digest);
+    const stream = await chatStream(digest, history);
 
+    // Logged before the stream is consumed, so a conversation that is abandoned halfway
+    // still leaves a record that it happened.
     await writeAudit({
       actorId: session.user.id,
       actorRole: session.user.role,
-      action: "ASSISTANT_SUMMARY_GENERATED",
+      action: "ASSISTANT_CHAT",
       entity: "Patient",
       entityId: patient.id,
-      after: { model: result.model },
+      after: { model: ASSISTANT_MODEL, turns: history.length },
       request,
     });
 
-    return NextResponse.json(result);
+    return new Response(stream, {
+      headers: {
+        "content-type": "text/plain; charset=utf-8",
+        "cache-control": "no-store",
+        "x-assistant-model": ASSISTANT_MODEL,
+      },
+    });
   } catch (error) {
     if (error instanceof AssistantUnavailable) {
       return NextResponse.json({ error: error.message }, { status: 503 });
