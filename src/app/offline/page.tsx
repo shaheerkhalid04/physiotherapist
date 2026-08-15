@@ -14,7 +14,7 @@ export default function OfflinePage() {
         Your exercises and anything you have recorded are saved on this phone. They will be sent
         to the hand team as soon as you have signal.
       </p>
-      <p className="text-base text-[--color-ink-muted]">
+      <p className="text-base text-ink-muted">
         If you are worried about your hand, telephone the hand department directly.
       </p>
     </div>

@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { requirePatient } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db";
 import { activePhase, permittedExercises, postOpDay } from "@/lib/domain/prescription";
 import { translate, type Locale } from "@/i18n/messages";
@@ -13,8 +13,8 @@ import { ConcernButton } from "@/components/patient/ConcernButton";
  * prescription renders an explanation, not exercises.
  */
 export default async function TodayPage() {
-  const session = await auth();
-  const patientId = session!.user.patientId!;
+  const session = await requirePatient();
+  const patientId = session.user.patientId!;
 
   const patient = await prisma.patient.findUniqueOrThrow({
     where: { id: patientId },
@@ -45,9 +45,9 @@ export default async function TodayPage() {
         <div
           role="alert"
           data-testid="urgent-patient-notice"
-          className="flex gap-3 rounded-[--radius-card] border-2 border-[--color-urgent] bg-[--color-urgent-quiet] p-4"
+          className="flex gap-3 rounded-card border-2 border-urgent bg-urgent-quiet p-4"
         >
-          <svg aria-hidden="true" viewBox="0 0 20 20" className="h-6 w-6 shrink-0 fill-[--color-urgent]">
+          <svg aria-hidden="true" viewBox="0 0 20 20" className="h-6 w-6 shrink-0 fill-urgent">
             <path d="M10 1.5l8.5 15h-17l8.5-15zm0 5a1 1 0 00-1 1v4a1 1 0 002 0v-4a1 1 0 00-1-1zm0 9.25a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5z" />
           </svg>
           <p className="text-base font-medium">{translate(locale, "urgent.contactDepartment")}</p>
@@ -56,16 +56,16 @@ export default async function TodayPage() {
 
       <header>
         <h1 className="text-2xl font-semibold">{translate(locale, "today.title")}</h1>
-        <p className="mt-1 text-[--color-ink-muted]">
+        <p className="mt-1 text-ink-muted">
           {translate(locale, "today.postOpDay", { day })}
         </p>
       </header>
 
       {phase ? (
-        <section className="rounded-[--radius-card] border border-[--color-border] bg-[--color-surface] p-4">
+        <section className="rounded-card border border-border bg-surface p-4">
           <h2 className="font-semibold">{phase.name}</h2>
           {phase.orthosisSchedule ? (
-            <p className="mt-2 text-base text-[--color-ink-muted]">{phase.orthosisSchedule}</p>
+            <p className="mt-2 text-base text-ink-muted">{phase.orthosisSchedule}</p>
           ) : null}
         </section>
       ) : null}
@@ -73,7 +73,7 @@ export default async function TodayPage() {
       {exercises.length === 0 ? (
         <p
           data-testid="no-prescription"
-          className="rounded-[--radius-card] border border-[--color-border] bg-[--color-surface] p-4 text-base"
+          className="rounded-card border border-border bg-surface p-4 text-base"
         >
           {translate(locale, "today.noPhase")}
         </p>

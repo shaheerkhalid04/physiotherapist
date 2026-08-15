@@ -21,9 +21,11 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: "npm run dev",
+        // A production build, not the dev server. The service worker is disabled in
+        // development, so the offline tests would be testing nothing.
+        command: "npm run build && npm run start",
         url: "http://localhost:3000/login",
         reuseExistingServer: !process.env.CI,
-        timeout: 120_000,
+        timeout: 240_000,
       },
 });

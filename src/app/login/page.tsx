@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { AuthError } from "next-auth";
 import { auth, signIn } from "@/auth";
 import { issueOtp } from "@/lib/auth/otp";
 
@@ -28,16 +29,26 @@ export default async function LoginPage({
 
   async function patientSignIn(formData: FormData) {
     "use server";
+
+    // signIn serialises this object into the request body, and an undefined value arrives
+    // as the literal string "undefined". That is nine characters, which fails the length
+    // check on the credentials schema and rejects an otherwise valid sign in. Omit the
+    // unused factor rather than passing undefined.
+    const credentials: Record<string, string> = {
+      phone: String(formData.get("phone") ?? "").trim(),
+      redirectTo: "/today",
+    };
+
+    const code = String(formData.get("code") ?? "").trim();
+    const pin = String(formData.get("pin") ?? "").trim();
+    if (code) credentials.code = code;
+    else if (pin) credentials.pin = pin;
+
     try {
-      await signIn("patient", {
-        phone: String(formData.get("phone") ?? ""),
-        code: String(formData.get("code") ?? "") || undefined,
-        pin: String(formData.get("pin") ?? "") || undefined,
-        redirectTo: "/today",
-      });
+      await signIn("patient", credentials);
     } catch (cause) {
-      if (cause instanceof Error && cause.message === "NEXT_REDIRECT") throw cause;
-      redirect("/login?error=credentials");
+      if (cause instanceof AuthError) redirect("/login?error=credentials");
+      throw cause;
     }
   }
 
@@ -50,8 +61,8 @@ export default async function LoginPage({
         redirectTo: "/worklist",
       });
     } catch (cause) {
-      if (cause instanceof Error && cause.message === "NEXT_REDIRECT") throw cause;
-      redirect("/login?error=credentials");
+      if (cause instanceof AuthError) redirect("/login?error=credentials");
+      throw cause;
     }
   }
 
@@ -60,15 +71,20 @@ export default async function LoginPage({
       <h1 className="text-2xl font-semibold">Hand Rehabilitation</h1>
 
       {error ? (
-        <p role="alert" className="rounded-[--radius-control] bg-[--color-urgent-quiet] p-3 text-base">
+        <p role="alert" className="rounded-control bg-urgent-quiet p-3 text-base">
           {error === "phone" ? "Please enter your phone number." : "Those details did not match."}
         </p>
       ) : null}
 
-      <section className="rounded-[--radius-card] border border-[--color-border] bg-[--color-surface] p-5">
+      <section className="rounded-card border border-border bg-surface p-5">
         <h2 className="text-lg font-semibold">Patients</h2>
 
-        <form action={requestCode} className="mt-4 flex flex-col gap-3">
+        {/*
+          One form, two submit buttons. The phone number must be readable by both actions:
+          when it lived only in the query string, the PIN fallback was unusable for exactly
+          the patient it exists for, the one who cannot receive an SMS.
+        */}
+        <form action={patientSignIn} className="mt-4 flex flex-col gap-3">
           <label className="flex flex-col gap-1">
             <span>Phone number</span>
             <input
@@ -77,21 +93,19 @@ export default async function LoginPage({
               inputMode="tel"
               defaultValue={phone ?? ""}
               required
-              className="rounded-[--radius-control] border border-[--color-border-strong] bg-[--color-surface] px-3 py-3 text-lg"
+              className="rounded-control border border-border-strong bg-surface px-3 py-3 text-lg"
             />
           </label>
           <button
             type="submit"
-            className="rounded-[--radius-control] border border-[--color-border-strong] px-4 py-3 text-base font-medium"
+            formAction={requestCode}
+            className="rounded-control border border-border-strong px-4 py-3 text-base font-medium"
           >
             Send me a code
           </button>
-        </form>
 
-        <form action={patientSignIn} className="mt-4 flex flex-col gap-3">
-          <input type="hidden" name="phone" value={phone ?? ""} />
           {sent ? (
-            <p role="status" className="text-base text-[--color-ink-muted]">
+            <p role="status" className="text-base text-ink-muted">
               We sent a code to {phone}.
             </p>
           ) : null}
@@ -101,7 +115,7 @@ export default async function LoginPage({
               name="code"
               inputMode="numeric"
               autoComplete="one-time-code"
-              className="rounded-[--radius-control] border border-[--color-border-strong] bg-[--color-surface] px-3 py-3 text-lg tracking-widest"
+              className="rounded-control border border-border-strong bg-surface px-3 py-3 text-lg tracking-widest"
             />
           </label>
           <details>
@@ -111,20 +125,20 @@ export default async function LoginPage({
               <input
                 name="pin"
                 inputMode="numeric"
-                className="rounded-[--radius-control] border border-[--color-border-strong] bg-[--color-surface] px-3 py-3 text-lg tracking-widest"
+                className="rounded-control border border-border-strong bg-surface px-3 py-3 text-lg tracking-widest"
               />
             </label>
           </details>
           <button
             type="submit"
-            className="rounded-[--radius-control] bg-[--color-accent] px-4 py-4 text-lg font-semibold text-white"
+            className="rounded-control bg-accent px-4 py-4 text-lg font-semibold text-white"
           >
             Sign in
           </button>
         </form>
       </section>
 
-      <section className="rounded-[--radius-card] border border-[--color-border] bg-[--color-surface] p-5">
+      <section className="rounded-card border border-border bg-surface p-5">
         <h2 className="text-lg font-semibold">Staff</h2>
         <form action={staffSignIn} className="mt-4 flex flex-col gap-3">
           <label className="flex flex-col gap-1">
@@ -134,7 +148,7 @@ export default async function LoginPage({
               type="email"
               autoComplete="username"
               required
-              className="rounded-[--radius-control] border border-[--color-border-strong] bg-[--color-surface] px-3 py-2"
+              className="rounded-control border border-border-strong bg-surface px-3 py-2"
             />
           </label>
           <label className="flex flex-col gap-1">
@@ -144,14 +158,14 @@ export default async function LoginPage({
               type="password"
               autoComplete="current-password"
               required
-              className="rounded-[--radius-control] border border-[--color-border-strong] bg-[--color-surface] px-3 py-2"
+              className="rounded-control border border-border-strong bg-surface px-3 py-2"
             />
           </label>
           <button
             type="submit"
-            className="rounded-[--radius-control] border border-[--color-border-strong] px-4 py-3 font-medium"
+            className="rounded-control border border-border-strong px-4 py-3 font-medium"
           >
-            Sign in
+            Sign in as staff
           </button>
         </form>
       </section>

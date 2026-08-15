@@ -64,7 +64,7 @@ export function HoldTimer({ seconds, locale }: { seconds: number; locale: Locale
       <button
         type="button"
         onClick={start}
-        className="rounded-[--radius-control] border border-[--color-border-strong] bg-[--color-surface-sunken] px-4 py-2 text-base font-medium"
+        className="rounded-control border border-border-strong bg-surface-sunken px-4 py-2 text-base font-medium"
       >
         {locale === "ur" ? "ٹائمر" : "Timer"}
       </button>

@@ -12,6 +12,13 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Emitted by @serwist/next on every build. Linting a bundled artefact tells us nothing
+    // about code anyone wrote.
+    "public/sw.js",
+    "public/sw.js.map",
+    "public/swe-worker-*.js",
+    "playwright-report/**",
+    "test-results/**",
   ]),
 ]);
 

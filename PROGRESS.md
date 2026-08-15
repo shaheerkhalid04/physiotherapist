@@ -7,42 +7,56 @@ Running log of what is built, what is pending, and what is blocked.
 | Step | Description | State |
 |---|---|---|
 | 1 | `PLAN.md`, `PROGRESS.md`, scaffold, git init | Done |
-| 2 | Prisma schema, migration, 15 seeded protocol templates | Written, migration not yet applied |
+| 2 | Prisma schema, migration, 15 seeded protocol templates | Done, applied and seeded |
 | 3 | Auth, roles, measurement module with unit tests | Done |
 | 4 | Clinician side | Done |
-| 5 | Patient side, offline sync, PWA | Done |
+| 5 | Patient side, offline sync, PWA | Done, with the offline gap below |
 | 6 | Alert rules engine, notifications | Rules done, notification delivery not wired |
-| 7 | Exports: PDF, DOCX, XLSX | Done |
-| 8 | Urdu localisation, accessibility, Playwright | Written, e2e not yet run |
+| 7 | Exports: PDF, DOCX, XLSX | Done, files verified |
+| 8 | Urdu localisation, accessibility, Playwright | Done, 9 pass and 1 known gap |
 | 9 | `README.md` and governance note | Done |
 
 ## Verified
 
+Against a live Postgres, a production build and a real browser.
+
 - `npm run test`: 57 unit tests pass
 - `npx tsc --noEmit`: clean
 - `npx eslint .`: clean
-- `npx next build --webpack`: succeeds, 12 routes
+- `npm run build`: succeeds, 12 routes
+- `npm run db:migrate`: 24 tables created
+- `npm run db:seed`: 15 templates (1 signed off), 8 thresholds (0 approved), 1 patient
+- `npx tsx scripts/verify.ts`: 8 checks pass, including that the database physically refuses
+  an unreviewed template, that a real plateau stays inert until its threshold is approved and
+  fires once it is, that all three exports produce files, and that a replayed clientUuid is
+  rejected with P2002
+- `npm run test:e2e`: 9 pass, 1 known gap below
 
-## Not verified
+## Known gap: the offline week does not work across app restarts
 
-These are written but have never executed against a live system, because the Docker daemon
-did not start on this machine during the build session. Docker Desktop was launched and
-`docker info` never returned. Nothing here is known to be broken; it is simply untested.
+The headline acceptance criterion is not met, and the failing test is marked `fixme` rather
+than weakened, so it stays visible.
 
-- The migration has not been applied to a database. `prisma/migrations/20260815000000_init`
-  was generated offline with `prisma migrate diff` and creates 24 tables. It has been
-  validated by Prisma but never run.
-- The seed has never executed. The 15 protocol templates, the unapproved thresholds and the
-  demo patient exist as code only.
-- Playwright has never run. The offline week, the replay idempotency check and the axe pass
-  all need a seeded database.
-- The exports have never produced an actual file. The builders compile and typecheck.
+What does work, and is proven: writes made with no connection queue in IndexedDB and drain
+correctly on reconnect, and a replayed batch is counted as duplicates rather than inserted
+twice.
 
-To close all four out on a machine with a working Docker daemon:
+What does not work: reopening the app with no connection. `/today` is server rendered on
+demand, so a reload offline cannot produce the exercise list. A patient who closes the app
+mid-week and reopens it offline sees the offline fallback, not their exercises.
 
-```bash
-npm run db:up && npm run db:migrate && npm run db:seed && npm run test:e2e
-```
+Closing this needs a departmental decision, not just code. The only way to show a
+prescription offline is to serve a cached copy, and a cached copy can be stale. If a
+clinician changes the phase while a patient is offline for a week, a cached screen shows
+exercises from a superseded phase, which is exactly what hard safety constraint 1 exists to
+prevent. Options, in rough order of increasing safety:
+
+1. Cache the last rendered `/today` and accept staleness.
+2. Cache the prescription in IndexedDB, render the screen client side, and refuse to show
+   anything older than a departmentally agreed window.
+3. Leave it as is, and tell patients the app needs a connection to open.
+
+This is question 14 for the department.
 
 ## Log
 

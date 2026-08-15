@@ -73,15 +73,15 @@ export function RomInput({
           setTouched(true);
           setValue((current) => ({ ...current, [key]: Number(event.target.value) }));
         }}
-        className="rounded-[--radius-control] border border-[--color-border-strong] bg-[--color-surface] px-3 py-3 text-lg"
+        className="rounded-control border border-border-strong bg-surface px-3 py-3 text-lg"
       />
     </label>
   );
 
   return (
-    <section className="rounded-[--radius-card] border border-[--color-border] bg-[--color-surface] p-4">
+    <section className="rounded-card border border-border bg-surface p-4">
       <h2 className="text-lg font-semibold">{translate(locale, "measure.title")}</h2>
-      <p className="mt-1 text-base text-[--color-ink-muted]">{translate(locale, "measure.help")}</p>
+      <p className="mt-1 text-base text-ink-muted">{translate(locale, "measure.help")}</p>
 
       <label className="mt-3 flex flex-col gap-1">
         <span className="text-base">{locale === "ur" ? "انگلی" : "Finger"}</span>
@@ -94,7 +94,7 @@ export function RomInput({
               digit: event.target.value as RomValue["digit"],
             }));
           }}
-          className="rounded-[--radius-control] border border-[--color-border-strong] bg-[--color-surface] px-3 py-3 text-lg"
+          className="rounded-control border border-border-strong bg-surface px-3 py-3 text-lg"
         >
           {DIGITS.map((digit) => (
             <option key={digit} value={digit}>
@@ -117,9 +117,9 @@ export function RomInput({
         <p
           role="status"
           data-testid="rom-warning"
-          className="mt-3 flex gap-2 rounded-[--radius-control] bg-[--color-review-quiet] p-3 text-base"
+          className="mt-3 flex gap-2 rounded-control bg-review-quiet p-3 text-base"
         >
-          <svg aria-hidden="true" viewBox="0 0 20 20" className="h-5 w-5 shrink-0 fill-[--color-review]">
+          <svg aria-hidden="true" viewBox="0 0 20 20" className="h-5 w-5 shrink-0 fill-review">
             <path d="M10 1.5l8.5 15h-17l8.5-15zm0 5a1 1 0 00-1 1v4a1 1 0 002 0v-4a1 1 0 00-1-1zm0 9.25a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5z" />
           </svg>
           <span>{translate(locale, "measure.implausible")}</span>

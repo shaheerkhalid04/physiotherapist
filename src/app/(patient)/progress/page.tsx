@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { requirePatient } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db";
 import { translate, type Locale } from "@/i18n/messages";
 
@@ -10,8 +10,8 @@ import { translate, type Locale } from "@/i18n/messages";
  * Anything that reads as clinical judgement has to come from their clinician.
  */
 export default async function ProgressPage() {
-  const session = await auth();
-  const patientId = session!.user.patientId!;
+  const session = await requirePatient();
+  const patientId = session.user.patientId!;
 
   const patient = await prisma.patient.findUniqueOrThrow({
     where: { id: patientId },
@@ -47,16 +47,16 @@ export default async function ProgressPage() {
       <h1 className="text-2xl font-semibold">{translate(locale, "progress.title")}</h1>
 
       {streak > 0 ? (
-        <p className="rounded-[--radius-card] border border-[--color-ontrack] bg-[--color-ontrack-quiet] p-4 text-lg font-medium">
+        <p className="rounded-card border border-ontrack bg-ontrack-quiet p-4 text-lg font-medium">
           {translate(locale, "progress.streak", { count: streak })}
         </p>
       ) : null}
 
-      <section className="rounded-[--radius-card] border border-[--color-border] bg-[--color-surface] p-4">
+      <section className="rounded-card border border-border bg-surface p-4">
         <h2 className="text-lg font-semibold">{translate(locale, "progress.movement")}</h2>
 
         {values.length === 0 ? (
-          <p className="mt-2 text-base text-[--color-ink-muted]">
+          <p className="mt-2 text-base text-ink-muted">
             {locale === "ur" ? "ابھی کوئی پیمائش نہیں۔" : "No measurements recorded yet."}
           </p>
         ) : (
@@ -69,7 +69,7 @@ export default async function ProgressPage() {
               {patient.measurements.slice(-20).map((measurement) => (
                 <div
                   key={measurement.id}
-                  className="flex-1 rounded-t bg-[--color-accent]"
+                  className="flex-1 rounded-t bg-accent"
                   style={{
                     height: `${Math.max(4, ((measurement.value ?? 0) / maxValue) * 100)}%`,
                   }}
@@ -78,19 +78,19 @@ export default async function ProgressPage() {
             </div>
             <dl className="mt-4 grid grid-cols-3 gap-3 text-center">
               <div>
-                <dt className="text-sm text-[--color-ink-muted]">
+                <dt className="text-sm text-ink-muted">
                   {locale === "ur" ? "پہلی" : "First"}
                 </dt>
                 <dd className="text-xl font-semibold tabular-nums">{Math.round(first ?? 0)}</dd>
               </div>
               <div>
-                <dt className="text-sm text-[--color-ink-muted]">
+                <dt className="text-sm text-ink-muted">
                   {locale === "ur" ? "تازہ ترین" : "Latest"}
                 </dt>
                 <dd className="text-xl font-semibold tabular-nums">{Math.round(latest ?? 0)}</dd>
               </div>
               <div>
-                <dt className="text-sm text-[--color-ink-muted]">
+                <dt className="text-sm text-ink-muted">
                   {locale === "ur" ? "بہترین" : "Best"}
                 </dt>
                 <dd className="text-xl font-semibold tabular-nums">{Math.round(best ?? 0)}</dd>

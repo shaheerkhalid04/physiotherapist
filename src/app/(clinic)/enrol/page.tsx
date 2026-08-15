@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { auth } from "@/auth";
+import { requireStaff } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db";
 import { writeAudit } from "@/lib/domain/audit";
 
@@ -30,8 +31,8 @@ const enrolSchema = z.object({
 });
 
 export default async function EnrolPage() {
-  const session = await auth();
-  const departmentId = session!.user.departmentId;
+  const session = await requireStaff();
+  const departmentId = session.user.departmentId;
 
   const templates = await prisma.protocolTemplate.findMany({
     where: { departmentId, reviewedById: { not: null } },
@@ -137,7 +138,7 @@ export default async function EnrolPage() {
         name={name}
         type={type}
         required={required}
-        className="rounded-[--radius-control] border border-[--color-border-strong] bg-[--color-surface] px-3 py-2 text-sm"
+        className="rounded-control border border-border-strong bg-surface px-3 py-2 text-sm"
       />
     </label>
   );
@@ -147,7 +148,7 @@ export default async function EnrolPage() {
       <span className="text-sm">{label}</span>
       <select
         name={name}
-        className="rounded-[--radius-control] border border-[--color-border-strong] bg-[--color-surface] px-3 py-2 text-sm"
+        className="rounded-control border border-border-strong bg-surface px-3 py-2 text-sm"
       >
         {options.map((option) => (
           <option key={option} value={option}>
@@ -164,7 +165,7 @@ export default async function EnrolPage() {
         <h1 className="text-xl font-semibold">Enrol a patient</h1>
       </header>
 
-      <fieldset className="grid grid-cols-2 gap-4 rounded-[--radius-card] border border-[--color-border] bg-[--color-surface] p-4">
+      <fieldset className="grid grid-cols-2 gap-4 rounded-card border border-border bg-surface p-4">
         <legend className="px-1 text-sm font-medium">Patient</legend>
         {field("Hospital MRN", "mrn")}
         {field("Name", "name")}
@@ -176,7 +177,7 @@ export default async function EnrolPage() {
         {select("Language", "language", ["UR", "EN"])}
       </fieldset>
 
-      <fieldset className="grid grid-cols-2 gap-4 rounded-[--radius-card] border border-[--color-border] bg-[--color-surface] p-4">
+      <fieldset className="grid grid-cols-2 gap-4 rounded-card border border-border bg-surface p-4">
         <legend className="px-1 text-sm font-medium">Operation</legend>
         {field("Procedure", "procedure")}
         {field("Date of surgery", "dateOfSurgery", "date")}
@@ -187,15 +188,15 @@ export default async function EnrolPage() {
           <textarea
             name="precautions"
             rows={3}
-            className="rounded-[--radius-control] border border-[--color-border-strong] bg-[--color-surface] px-3 py-2 text-sm"
+            className="rounded-control border border-border-strong bg-surface px-3 py-2 text-sm"
           />
         </label>
       </fieldset>
 
-      <fieldset className="rounded-[--radius-card] border border-[--color-border] bg-[--color-surface] p-4">
+      <fieldset className="rounded-card border border-border bg-surface p-4">
         <legend className="px-1 text-sm font-medium">Protocol</legend>
         {templates.length === 0 ? (
-          <p className="text-sm text-[--color-review]">
+          <p className="text-sm text-review">
             No protocol templates have been signed off yet, so none can be assigned. Sign one off
             in the protocol library first.
           </p>
@@ -204,7 +205,7 @@ export default async function EnrolPage() {
             <span className="text-sm">Signed-off template</span>
             <select
               name="templateId"
-              className="rounded-[--radius-control] border border-[--color-border-strong] bg-[--color-surface] px-3 py-2 text-sm"
+              className="rounded-control border border-border-strong bg-surface px-3 py-2 text-sm"
             >
               <option value="">Assign later</option>
               {templates.map((template) => (
@@ -215,7 +216,7 @@ export default async function EnrolPage() {
             </select>
           </label>
         )}
-        <p className="mt-2 text-xs text-[--color-ink-faint]">
+        <p className="mt-2 text-xs text-ink-faint">
           Assignment copies the template. Editing the library afterwards will not change this
           patient&apos;s prescription. The first phase still needs activating on the patient page.
         </p>
@@ -223,7 +224,7 @@ export default async function EnrolPage() {
 
       <button
         type="submit"
-        className="w-fit rounded-[--radius-control] bg-[--color-accent] px-5 py-2.5 text-sm font-medium text-white"
+        className="w-fit rounded-control bg-accent px-5 py-2.5 text-sm font-medium text-white"
       >
         Enrol patient
       </button>

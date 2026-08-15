@@ -45,6 +45,12 @@ remotely, so they travel to hospital only when clinically necessary.
 
 7. **The Urdu translation needs a native speaker's review.** It is a working draft.
 
+8. **The app currently needs a connection to open.** Work recorded offline is queued safely
+   and syncs on reconnect, but reopening the app with no signal shows the offline page rather
+   than the patient's exercises. Showing them offline would mean serving a cached
+   prescription, which can be stale after a clinician changes a phase. That trade-off is
+   question 14 for the department. See PROGRESS.md.
+
 ## Setup
 
 Requirements: Node 20 or newer, Docker Desktop, git.

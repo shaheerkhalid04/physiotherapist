@@ -11,21 +11,21 @@ export default async function ClinicLayout({ children }: { children: React.React
   if (!STAFF.has(session.user.role)) redirect("/today");
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[--color-canvas]">
-      <header className="border-b border-[--color-border] bg-[--color-surface]">
+    <div className="flex min-h-dvh flex-col bg-canvas">
+      <header className="border-b border-border bg-surface">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
           <nav className="flex items-center gap-5 text-sm">
             <Link href="/worklist" className="font-semibold">
               Worklist
             </Link>
-            <Link href="/enrol" className="text-[--color-ink-muted] hover:text-[--color-ink]">
+            <Link href="/enrol" className="text-ink-muted hover:text-ink">
               Enrol patient
             </Link>
-            <Link href="/templates" className="text-[--color-ink-muted] hover:text-[--color-ink]">
+            <Link href="/templates" className="text-ink-muted hover:text-ink">
               Protocols
             </Link>
           </nav>
-          <span className="text-sm text-[--color-ink-muted]">
+          <span className="text-sm text-ink-muted">
             {session.user.name} ({session.user.role.toLowerCase()})
           </span>
         </div>

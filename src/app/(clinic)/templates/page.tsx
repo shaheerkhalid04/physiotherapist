@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
+import { requireStaff } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db";
 import { writeAudit } from "@/lib/domain/audit";
 
@@ -10,10 +11,10 @@ import { writeAudit } from "@/lib/domain/audit";
  * refuses the assignment, so this page is not a formality.
  */
 export default async function TemplatesPage() {
-  const session = await auth();
+  const session = await requireStaff();
 
   const templates = await prisma.protocolTemplate.findMany({
-    where: { departmentId: session!.user.departmentId },
+    where: { departmentId: session.user.departmentId },
     include: {
       reviewedBy: { select: { name: true } },
       phases: { include: { exercises: true }, orderBy: { order: "asc" } },
@@ -56,7 +57,7 @@ export default async function TemplatesPage() {
     <div className="flex flex-col gap-5">
       <header>
         <h1 className="text-xl font-semibold">Protocol library</h1>
-        <p className="mt-1 text-sm text-[--color-ink-muted]">
+        <p className="mt-1 text-sm text-ink-muted">
           {templates.length} templates, {unsigned} awaiting departmental review. An unreviewed
           template cannot be assigned to a patient.
         </p>
@@ -66,13 +67,13 @@ export default async function TemplatesPage() {
         {templates.map((template) => (
           <li
             key={template.id}
-            className="rounded-[--radius-card] border border-[--color-border] bg-[--color-surface] p-4"
+            className="rounded-card border border-border bg-surface p-4"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="font-medium">{template.name}</h2>
-                <p className="mt-1 text-sm text-[--color-ink-muted]">{template.indication}</p>
-                <p className="mt-1 text-xs text-[--color-ink-faint]">
+                <p className="mt-1 text-sm text-ink-muted">{template.indication}</p>
+                <p className="mt-1 text-xs text-ink-faint">
                   {template.phases.length} phases,{" "}
                   {template.phases.reduce((sum, phase) => sum + phase.exercises.length, 0)} exercises,
                   assigned to {template._count.assignments} patients
@@ -81,21 +82,21 @@ export default async function TemplatesPage() {
 
               <div className="flex flex-col items-end gap-2">
                 {template.reviewedById ? (
-                  <span className="rounded-full border border-[--color-ontrack] bg-[--color-ontrack-quiet] px-2.5 py-1 text-xs font-semibold text-[--color-ontrack]">
+                  <span className="rounded-full border border-ontrack bg-ontrack-quiet px-2.5 py-1 text-xs font-semibold text-ontrack">
                     Signed off by {template.reviewedBy?.name}
                   </span>
                 ) : (
-                  <span className="rounded-full border border-[--color-review] bg-[--color-review-quiet] px-2.5 py-1 text-xs font-semibold text-[--color-review]">
+                  <span className="rounded-full border border-review bg-review-quiet px-2.5 py-1 text-xs font-semibold text-review">
                     Draft, not for clinical use
                   </span>
                 )}
 
-                {!template.reviewedById && session!.user.role === "SURGEON" ? (
+                {!template.reviewedById && session.user.role === "SURGEON" ? (
                   <form action={signOff}>
                     <input type="hidden" name="templateId" value={template.id} />
                     <button
                       type="submit"
-                      className="rounded-[--radius-control] bg-[--color-accent] px-3 py-2 text-sm font-medium text-white"
+                      className="rounded-control bg-accent px-3 py-2 text-sm font-medium text-white"
                     >
                       Sign off
                     </button>

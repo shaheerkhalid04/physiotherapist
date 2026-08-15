@@ -92,10 +92,10 @@ export function SymptomForm({
             type="button"
             aria-pressed={value[key] === level}
             onClick={() => setValue((current) => ({ ...current, [key]: level }))}
-            className={`flex-1 rounded-[--radius-control] border px-3 py-3 text-base ${
+            className={`flex-1 rounded-control border px-3 py-3 text-base ${
               value[key] === level
-                ? "border-[--color-accent] bg-[--color-accent-quiet]"
-                : "border-[--color-border] bg-[--color-surface-sunken]"
+                ? "border-accent bg-accent-quiet"
+                : "border-border bg-surface-sunken"
             }`}
           >
             {translate(
@@ -109,7 +109,7 @@ export function SymptomForm({
   );
 
   return (
-    <section className="flex flex-col gap-4 rounded-[--radius-card] border border-[--color-border] bg-[--color-surface] p-4">
+    <section className="flex flex-col gap-4 rounded-card border border-border bg-surface p-4">
       <h2 className="text-lg font-semibold">{translate(locale, "symptoms.title")}</h2>
 
       {scale(translate(locale, "symptoms.painAtRest"), "painAtRest")}
@@ -127,10 +127,10 @@ export function SymptomForm({
                 type="button"
                 aria-pressed={value.orthosis === option}
                 onClick={() => setValue((current) => ({ ...current, orthosis: option }))}
-                className={`rounded-[--radius-control] border px-3 py-3 text-start text-base ${
+                className={`rounded-control border px-3 py-3 text-start text-base ${
                   value.orthosis === option
-                    ? "border-[--color-accent] bg-[--color-accent-quiet]"
-                    : "border-[--color-border] bg-[--color-surface-sunken]"
+                    ? "border-accent bg-accent-quiet"
+                    : "border-border bg-surface-sunken"
                 }`}
               >
                 {option === "WORN_AS_INSTRUCTED"

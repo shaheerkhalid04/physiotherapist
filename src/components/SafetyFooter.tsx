@@ -12,7 +12,7 @@ export function SafetyFooter({ locale }: { locale: Locale }) {
     <footer
       role="contentinfo"
       data-testid="safety-footer"
-      className="border-t border-[--color-border] bg-[--color-surface-sunken] px-4 py-3 text-center text-sm text-[--color-ink-muted]"
+      className="border-t border-border bg-surface-sunken px-4 py-3 text-center text-sm text-ink-muted"
     >
       {translate(locale, "app.disclaimer")}
     </footer>

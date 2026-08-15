@@ -151,7 +151,7 @@ export function SessionRunner({
       <p
         role="status"
         data-testid="session-saved"
-        className="rounded-[--radius-card] border border-[--color-ontrack] bg-[--color-ontrack-quiet] p-4 text-base"
+        className="rounded-card border border-ontrack bg-ontrack-quiet p-4 text-base"
       >
         {translate(locale, "offline.queued")}
       </p>
@@ -168,10 +168,10 @@ export function SessionRunner({
               key={exercise.id}
               data-testid="exercise-card"
               data-exercise-id={exercise.id}
-              className="rounded-[--radius-card] border border-[--color-border] bg-[--color-surface] p-4"
+              className="rounded-card border border-border bg-surface p-4"
             >
               <h3 className="text-lg font-semibold">{exercise.name}</h3>
-              <p className="mt-1 text-base text-[--color-ink-muted]">{exercise.instruction}</p>
+              <p className="mt-1 text-base text-ink-muted">{exercise.instruction}</p>
 
               <p className="mt-2 text-base">
                 {translate(locale, "today.sets", { sets: exercise.sets, reps: exercise.reps })}
@@ -199,10 +199,10 @@ export function SessionRunner({
                       type="button"
                       aria-pressed={selected}
                       onClick={() => setStatus(exercise.id, status)}
-                      className={`rounded-[--radius-control] border px-4 py-2 text-base font-medium ${
+                      className={`rounded-control border px-4 py-2 text-base font-medium ${
                         selected
-                          ? "border-[--color-accent] bg-[--color-accent-quiet]"
-                          : "border-[--color-border-strong] bg-[--color-surface]"
+                          ? "border-accent bg-accent-quiet"
+                          : "border-border-strong bg-surface"
                       }`}
                     >
                       {translate(locale, label)}
@@ -223,10 +223,10 @@ export function SessionRunner({
                         type="button"
                         aria-pressed={log.reason === reason}
                         onClick={() => setReason(exercise.id, reason)}
-                        className={`rounded-[--radius-control] border px-3 py-2 text-base ${
+                        className={`rounded-control border px-3 py-2 text-base ${
                           log.reason === reason
-                            ? "border-[--color-accent] bg-[--color-accent-quiet]"
-                            : "border-[--color-border] bg-[--color-surface-sunken]"
+                            ? "border-accent bg-accent-quiet"
+                            : "border-border bg-surface-sunken"
                         }`}
                       >
                         {translate(locale, `reason.${reason}` as never)}
@@ -249,7 +249,7 @@ export function SessionRunner({
           disabled={!allAnswered}
           onClick={finish}
           data-testid="finish-session"
-          className="w-full rounded-[--radius-control] bg-[--color-accent] px-4 py-4 text-lg font-semibold text-white disabled:opacity-40"
+          className="w-full rounded-control bg-accent px-4 py-4 text-lg font-semibold text-white disabled:opacity-40"
         >
           {translate(locale, "today.finish")}
         </button>

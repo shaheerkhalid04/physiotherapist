@@ -11,7 +11,7 @@ async function signInAsPatient(page: Page) {
   await page.getByLabel("Phone number").fill(PATIENT_PHONE);
   await page.getByText("I cannot receive a code").click();
   await page.getByLabel("PIN").fill(PATIENT_PIN);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/today/);
 }
 
@@ -19,7 +19,7 @@ async function signInAsStaff(page: Page) {
   await page.goto("/login");
   await page.getByLabel("Email").fill(STAFF_EMAIL);
   await page.getByLabel("Password").fill(STAFF_PASSWORD);
-  await page.getByRole("button", { name: "Sign in" }).last().click();
+  await page.getByRole("button", { name: "Sign in as staff" }).click();
   await expect(page).toHaveURL(/\/worklist/);
 }
 

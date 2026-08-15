@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { auth } from "@/auth";
+import { requireStaff } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db";
 import { severityRank } from "@/lib/clinical/rules";
 import { postOpDay } from "@/lib/domain/prescription";
@@ -22,8 +22,8 @@ const BAND_LABEL = {
 type Band = keyof typeof BAND_LABEL;
 
 export default async function WorklistPage() {
-  const session = await auth();
-  const departmentId = session!.user.departmentId;
+  const session = await requireStaff();
+  const departmentId = session.user.departmentId;
 
   const patients = await prisma.patient.findMany({
     where: { departmentId },
@@ -82,17 +82,17 @@ export default async function WorklistPage() {
     <div className="flex flex-col gap-5">
       <header className="flex items-baseline justify-between">
         <h1 className="text-xl font-semibold">Worklist</h1>
-        <p className="text-sm text-[--color-ink-muted]">
+        <p className="text-sm text-ink-muted">
           {rows.length} patients, {urgent} needing urgent attention
         </p>
       </header>
 
-      <div className="overflow-x-auto rounded-[--radius-card] border border-[--color-border] bg-[--color-surface]">
+      <div className="overflow-x-auto rounded-card border border-border bg-surface">
         <table className="w-full min-w-[52rem] text-sm">
           <caption className="sr-only">
             Patients ordered by clinical risk, most urgent first
           </caption>
-          <thead className="bg-[--color-surface-sunken] text-start">
+          <thead className="bg-surface-sunken text-start">
             <tr>
               <th scope="col" className="px-4 py-3 text-start font-medium">State</th>
               <th scope="col" className="px-4 py-3 text-start font-medium">Patient</th>
@@ -108,7 +108,7 @@ export default async function WorklistPage() {
                 key={row.id}
                 data-testid="worklist-row"
                 data-band={row.band}
-                className="border-t border-[--color-border]"
+                className="border-t border-border"
               >
                 <td className="px-4 py-3">
                   <StateBadge band={row.band} rule={row.topRule} unapproved={row.thresholdUnapproved} />
@@ -117,7 +117,7 @@ export default async function WorklistPage() {
                   <Link href={`/patients/${row.id}`} className="font-medium underline">
                     {row.name}
                   </Link>
-                  <div className="text-[--color-ink-faint]">{row.mrn}</div>
+                  <div className="text-ink-faint">{row.mrn}</div>
                 </td>
                 <td className="px-4 py-3">{row.procedure}</td>
                 <td className="px-4 py-3 tabular-nums">{row.day ?? "-"}</td>
@@ -126,14 +126,14 @@ export default async function WorklistPage() {
                     <span className="flex items-center gap-2">
                       {Math.round(row.latestTam)}
                       {row.tamDelta !== null ? (
-                        <span className={row.tamDelta < 0 ? "text-[--color-urgent]" : "text-[--color-ink-muted]"}>
+                        <span className={row.tamDelta < 0 ? "text-urgent" : "text-ink-muted"}>
                           {row.tamDelta >= 0 ? "+" : ""}
                           {Math.round(row.tamDelta)}
                         </span>
                       ) : null}
                       <span
                         title={row.selfMeasured ? "Self-measured" : "Clinic measured"}
-                        className="text-xs uppercase tracking-wide text-[--color-ink-faint]"
+                        className="text-xs uppercase tracking-wide text-ink-faint"
                       >
                         {row.selfMeasured ? "self" : "clinic"}
                       </span>
@@ -152,7 +152,7 @@ export default async function WorklistPage() {
       </div>
 
       {rows.length === 0 ? (
-        <p className="text-sm text-[--color-ink-muted]">No patients enrolled yet.</p>
+        <p className="text-sm text-ink-muted">No patients enrolled yet.</p>
       ) : null}
     </div>
   );
@@ -168,10 +168,10 @@ function StateBadge({
   unapproved: boolean;
 }) {
   const style: Record<Band, string> = {
-    URGENT: "border-[--color-urgent] bg-[--color-urgent-quiet] text-[--color-urgent]",
-    REVIEW: "border-[--color-review] bg-[--color-review-quiet] text-[--color-review]",
-    OUTREACH: "border-[--color-outreach] bg-[--color-outreach-quiet] text-[--color-outreach]",
-    ONTRACK: "border-[--color-ontrack] bg-[--color-ontrack-quiet] text-[--color-ontrack]",
+    URGENT: "border-urgent bg-urgent-quiet text-urgent",
+    REVIEW: "border-review bg-review-quiet text-review",
+    OUTREACH: "border-outreach bg-outreach-quiet text-outreach",
+    ONTRACK: "border-ontrack bg-ontrack-quiet text-ontrack",
   };
 
   return (
@@ -191,10 +191,10 @@ function StateBadge({
         {BAND_LABEL[band]}
       </span>
       {rule ? (
-        <span className="text-xs text-[--color-ink-faint]">{rule.replace(/-/g, " ")}</span>
+        <span className="text-xs text-ink-faint">{rule.replace(/-/g, " ")}</span>
       ) : null}
       {unapproved ? (
-        <span className="text-xs text-[--color-review]">threshold not signed off</span>
+        <span className="text-xs text-review">threshold not signed off</span>
       ) : null}
     </div>
   );

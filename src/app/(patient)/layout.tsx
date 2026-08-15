@@ -28,13 +28,13 @@ export default async function PatientLayout({ children }: { children: React.Reac
     <div
       lang={locale}
       dir={rtl ? "rtl" : "ltr"}
-      className="patient-scope flex min-h-dvh flex-col bg-[--color-canvas]"
+      className="patient-scope flex min-h-dvh flex-col bg-canvas"
     >
-      <header className="flex items-center justify-between border-b border-[--color-border] bg-[--color-surface] px-4 py-3">
+      <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3">
         <span className="text-lg font-semibold">{translate(locale, "app.name")}</span>
         <a
           href={`tel:${patient.department.contactPhone}`}
-          className="rounded-[--radius-control] px-3 py-2 text-base font-medium text-[--color-accent] underline"
+          className="rounded-control px-3 py-2 text-base font-medium text-accent underline"
         >
           {patient.department.contactPhone}
         </a>
