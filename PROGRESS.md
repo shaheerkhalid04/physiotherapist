@@ -20,7 +20,7 @@ Running log of what is built, what is pending, and what is blocked.
 
 Against a live Postgres, a production build and a real browser.
 
-- `npm run test`: 57 unit tests pass
+- `npm run test`: 68 unit tests pass
 - `npx tsc --noEmit`: clean
 - `npx eslint .`: clean
 - `npm run build`: succeeds, 12 routes
@@ -30,33 +30,49 @@ Against a live Postgres, a production build and a real browser.
   an unreviewed template, that a real plateau stays inert until its threshold is approved and
   fires once it is, that all three exports produce files, and that a replayed clientUuid is
   rejected with P2002
-- `npm run test:e2e`: 9 pass, 1 known gap below
+- `npm run test:e2e`: 10 pass, including the full offline week
 
-## Known gap: the offline week does not work across app restarts
+## The offline week, and the trade-off it required
 
-The headline acceptance criterion is not met, and the failing test is marked `fixme` rather
-than weakened, so it stays visible.
+The headline acceptance criterion now passes end to end: a patient completes seven sessions
+with the radio off, reopening the app each time, and everything syncs on reconnection with
+no data loss and no duplicates.
 
-What does work, and is proven: writes made with no connection queue in IndexedDB and drain
-correctly on reconnect, and a replayed batch is counted as duplicates rather than inserted
-twice.
+Getting there needed a design change, because the previous `/today` was server rendered and
+a reload with no connection could not produce an exercise list. The shape now is:
 
-What does not work: reopening the app with no connection. `/today` is server rendered on
-demand, so a reload offline cannot produce the exercise list. A patient who closes the app
-mid-week and reopens it offline sees the offline fallback, not their exercises.
+- `/today` renders no clinical data on the server. It is a shell carrying the locale and the
+  patient id, which is what makes the markup safe for the service worker to cache.
+- The prescription is fetched from `/api/prescription` and stored in IndexedDB with the
+  timestamp at which the server last confirmed it.
+- The API returns only what `permittedExercises` returns, so the rule that only a
+  clinician-approved active phase reaches a patient did not move when the render did.
+  Nothing outside the active phase can be sent, therefore nothing outside it can be cached.
 
-Closing this needs a departmental decision, not just code. The only way to show a
-prescription offline is to serve a cached copy, and a cached copy can be stale. If a
-clinician changes the phase while a patient is offline for a week, a cached screen shows
-exercises from a superseded phase, which is exactly what hard safety constraint 1 exists to
-prevent. Options, in rough order of increasing safety:
+**The trade-off, which still needs departmental sign-off.** A cached prescription can be
+stale. If a clinician changes the phase while a patient is offline, the device is holding
+exercises from a phase that is no longer current. The mitigation is a bounded age, in
+`src/lib/offline/prescription.ts`:
 
-1. Cache the last rendered `/today` and accept staleness.
-2. Cache the prescription in IndexedDB, render the screen client side, and refuse to show
-   anything older than a departmentally agreed window.
-3. Leave it as is, and tell patients the app needs a connection to open.
+| Age of cached copy | Behaviour |
+|---|---|
+| Under 1 day | Shown normally |
+| 1 day to the bound | Shown, with the date it was last confirmed displayed to the patient |
+| Past the bound | No exercises shown at all, patient told to contact the department |
+| Stamped in the future | Treated as unusable, because a device clock that lies cannot be used to evaluate an age bound |
 
-This is question 14 for the department.
+`DEFAULT_MAX_OFFLINE_AGE_DAYS` is currently 7. **That number is mine, not a clinician's**,
+and it is question 14 for the department. Withholding exercises is the deliberate failure
+mode: delaying a patient is recoverable, showing exercises from a superseded phase can
+rupture a repair.
+
+Post-operative day is projected forward by the days elapsed since the cache was written, so
+a session logged four days into an offline stretch is filed under the correct day rather
+than the day the prescription was downloaded.
+
+One residual limitation, stated in the patient-facing copy rather than hidden: the very
+first visit must be online. A service worker does not control the page that installed it, so
+the device is primed by the first online visit and works offline from then on.
 
 ## Log
 

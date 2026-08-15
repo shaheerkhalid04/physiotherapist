@@ -84,6 +84,12 @@ export const messages = {
     "offline.queued": "Saved on your phone. It will send when you have signal.",
     "offline.syncing": "Sending your records",
     "offline.synced": "Everything is saved",
+    "offline.loading": "Loading your exercises",
+    "offline.lastConfirmed": "Last confirmed with the hospital on {date}.",
+    "offline.tooOld":
+      "This phone has not connected to the hospital for {days} days, so we cannot be sure these are still the right exercises for you. Please contact the hand department before carrying on.",
+    "offline.noCache":
+      "Your exercises have not been downloaded to this phone yet. Please connect to the internet once, and after that you can use the app without signal.",
 
     "progress.title": "My progress",
     "progress.movement": "Movement",
@@ -155,6 +161,12 @@ export const messages = {
     "offline.queued": "آپ کے فون پر محفوظ ہو گیا۔ سگنل آنے پر بھیج دیا جائے گا۔",
     "offline.syncing": "آپ کا ریکارڈ بھیجا جا رہا ہے",
     "offline.synced": "سب کچھ محفوظ ہے",
+    "offline.loading": "آپ کی مشقیں کھل رہی ہیں",
+    "offline.lastConfirmed": "ہسپتال سے آخری تصدیق {date} کو ہوئی۔",
+    "offline.tooOld":
+      "اس فون کا ہسپتال سے {days} دن سے رابطہ نہیں ہوا، اس لیے ہم یقین سے نہیں کہہ سکتے کہ یہی مشقیں اب بھی آپ کے لیے درست ہیں۔ جاری رکھنے سے پہلے ہینڈ ڈیپارٹمنٹ سے رابطہ کریں۔",
+    "offline.noCache":
+      "آپ کی مشقیں ابھی اس فون پر محفوظ نہیں ہوئیں۔ ایک بار انٹرنیٹ سے منسلک ہوں، اس کے بعد آپ بغیر سگنل کے ایپ استعمال کر سکتے ہیں۔",
 
     "progress.title": "میری پیش رفت",
     "progress.movement": "حرکت",

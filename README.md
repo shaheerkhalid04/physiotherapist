@@ -45,11 +45,13 @@ remotely, so they travel to hospital only when clinically necessary.
 
 7. **The Urdu translation needs a native speaker's review.** It is a working draft.
 
-8. **The app currently needs a connection to open.** Work recorded offline is queued safely
-   and syncs on reconnect, but reopening the app with no signal shows the offline page rather
-   than the patient's exercises. Showing them offline would mean serving a cached
-   prescription, which can be stale after a clinician changes a phase. That trade-off is
-   question 14 for the department. See PROGRESS.md.
+8. **The offline age bound is not a clinician's number.** The app works with no connection by
+   caching the prescription on the device. A cached copy can be stale: if a clinician changes
+   the phase while a patient is offline, the device holds exercises from a superseded phase.
+   The mitigation is that a cached copy is usable for a bounded time, currently 7 days, after
+   which no exercises are shown at all and the patient is told to contact the department.
+   That 7 is a placeholder and is question 14. See `src/lib/offline/prescription.ts` and
+   PROGRESS.md.
 
 ## Setup
 

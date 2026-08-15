@@ -34,31 +34,32 @@ async function completeSession(page: Page) {
 }
 
 test.describe("offline patient workflow", () => {
-  /**
-   * KNOWN GAP, deliberately left failing rather than weakened.
-   *
-   * Writes made offline queue and drain correctly, which the replay test below proves. What
-   * does not work is reopening the app offline: /today is server rendered on demand, so a
-   * reload with no connection cannot produce the exercise list, and the acceptance criterion
-   * "a patient can complete a full week of sessions entirely offline" is therefore not met.
-   *
-   * Closing it needs a decision the department has to make, because the only way to show a
-   * prescription offline is to serve a cached copy, and a cached copy can be stale. If a
-   * clinician changes the phase while the patient is offline for a week, a cached screen
-   * shows exercises from the superseded phase. That is a safety trade off, not a caching
-   * detail, so it is not being made unilaterally. See PROGRESS.md.
-   */
-  test.fixme("a week of sessions completes offline and syncs once with no duplicates", async ({
+  test("a week of sessions completes offline and syncs once with no duplicates", async ({
     page,
     context,
   }) => {
     await signInAsPatient(page);
 
-    // Warm the shell, then cut the connection for the whole week.
+    // The first online visit is what downloads the prescription to the device and lets the
+    // service worker take control. Everything after this happens with the radio off.
+    await expect(page.getByTestId("exercise-card").first()).toBeVisible();
+    await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, {
+      timeout: 15_000,
+    });
+
+    // A service worker only caches navigations it actually handles, and it does not control
+    // the page it was installed by. One further online visit is therefore what primes the
+    // device, which is exactly what the patient-facing copy promises: connect once, and
+    // after that the app opens without signal.
+    await page.reload();
+    await expect(page.getByTestId("exercise-card").first()).toBeVisible();
+
     await context.setOffline(true);
 
     for (let day = 0; day < 7; day++) {
       await page.reload();
+      // The exercises come from the cached prescription, not from the server.
+      await expect(page.getByTestId("exercise-card").first()).toBeVisible();
       await completeSession(page);
       await expect(page.getByTestId("offline-banner")).toBeVisible();
     }

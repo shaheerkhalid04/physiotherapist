@@ -2,6 +2,7 @@
 
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { SyncOutcome, SyncRecord } from "@/lib/sync/contract";
+import type { CachedPrescription } from "./prescription";
 
 /**
  * The device queue.
@@ -16,8 +17,9 @@ import type { SyncOutcome, SyncRecord } from "@/lib/sync/contract";
  */
 
 const DB_NAME = "physio-offline";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE = "outbox";
+const PRESCRIPTION_STORE = "prescription";
 
 interface QueuedRecord {
   clientUuid: string;
@@ -33,6 +35,10 @@ interface OutboxSchema extends DBSchema {
     value: QueuedRecord;
     indexes: { queuedAt: number };
   };
+  prescription: {
+    key: string;
+    value: CachedPrescription;
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<OutboxSchema>> | null = null;
@@ -40,13 +46,60 @@ let dbPromise: Promise<IDBPDatabase<OutboxSchema>> | null = null;
 function db() {
   if (!dbPromise) {
     dbPromise = openDB<OutboxSchema>(DB_NAME, DB_VERSION, {
-      upgrade(database) {
-        const store = database.createObjectStore(STORE, { keyPath: "clientUuid" });
-        store.createIndex("queuedAt", "queuedAt");
+      upgrade(database, oldVersion) {
+        if (oldVersion < 1) {
+          const store = database.createObjectStore(STORE, { keyPath: "clientUuid" });
+          store.createIndex("queuedAt", "queuedAt");
+        }
+        if (oldVersion < 2) {
+          database.createObjectStore(PRESCRIPTION_STORE, { keyPath: "patientId" });
+        }
       },
     });
   }
   return dbPromise;
+}
+
+/**
+ * The prescription cache.
+ *
+ * Written on every successful fetch, read when the network is unavailable. Keyed by patient
+ * so a shared handset cannot serve one patient's exercises to another.
+ */
+export async function savePrescription(prescription: CachedPrescription): Promise<void> {
+  const database = await db();
+  await database.put(PRESCRIPTION_STORE, prescription);
+}
+
+export async function loadPrescription(patientId: string): Promise<CachedPrescription | null> {
+  const database = await db();
+  return (await database.get(PRESCRIPTION_STORE, patientId)) ?? null;
+}
+
+export async function clearPrescriptions(): Promise<void> {
+  const database = await db();
+  await database.clear(PRESCRIPTION_STORE);
+}
+
+/**
+ * Subscribers notified whenever the queue depth changes.
+ *
+ * Without this the offline indicator only refreshed on a timer, so a patient who saved a
+ * session with no signal saw nothing acknowledge it for up to a minute. On a phone that has
+ * just been asked to trust an app with a tendon repair, a minute of silence is the wrong
+ * feedback.
+ */
+type QueueListener = (remaining: number) => void;
+const listeners = new Set<QueueListener>();
+
+export function onQueueChange(listener: QueueListener): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+async function notify(): Promise<void> {
+  const remaining = await pendingCount();
+  for (const listener of listeners) listener(remaining);
 }
 
 export async function enqueue(record: SyncRecord): Promise<void> {
@@ -60,6 +113,7 @@ export async function enqueue(record: SyncRecord): Promise<void> {
     attempts: 0,
     lastError: null,
   });
+  await notify();
 }
 
 export async function pending(): Promise<QueuedRecord[]> {
@@ -128,7 +182,9 @@ export async function drain(batchSize = 100): Promise<{ settled: number; remaini
     }
   }
 
-  return { settled, remaining: await pendingCount() };
+  const remaining = await pendingCount();
+  await notify();
+  return { settled, remaining };
 }
 
 /** Registers drain on reconnect and on tab focus. Returns a cleanup function. */

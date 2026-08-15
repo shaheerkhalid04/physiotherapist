@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { pendingCount, startAutoSync } from "@/lib/offline/queue";
+import { onQueueChange, pendingCount, startAutoSync } from "@/lib/offline/queue";
 import { translate, type Locale } from "@/i18n/messages";
 
 /** Connectivity is external state, so it is read rather than mirrored into a state variable. */
@@ -31,7 +31,12 @@ export function OfflineBanner({ locale }: { locale: Locale }) {
 
   useEffect(() => {
     void pendingCount().then(setQueued);
-    return startAutoSync(setQueued);
+    const stopAutoSync = startAutoSync(setQueued);
+    const unsubscribe = onQueueChange(setQueued);
+    return () => {
+      stopAutoSync();
+      unsubscribe();
+    };
   }, []);
 
   if (online && queued === 0) return null;
