@@ -10,7 +10,7 @@
 export const openApiDocument = {
   openapi: "3.1.0",
   info: {
-    title: "Remote post-operative hand therapy API",
+    title: "Glide API",
     version: "1.0.0",
     description:
       "Endpoints backing the patient and clinician surfaces. Every clinical write is append-only and audit logged. Nothing in this API can create or alter a prescription: a prescription reaches a patient only by a clinician copying a signed-off template, and a phase advances only through a clinician-approved transition.",

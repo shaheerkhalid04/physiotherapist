@@ -2,11 +2,11 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Hand Rehabilitation",
+  title: "Glide",
   description:
     "Remote post-operative hand and upper limb rehabilitation, prescribed and monitored by your hospital hand team.",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "Hand Rehab", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Glide", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

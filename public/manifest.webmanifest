@@ -1,6 +1,6 @@
 {
-  "name": "Hand Rehabilitation",
-  "short_name": "Hand Rehab",
+  "name": "Glide, hand rehabilitation",
+  "short_name": "Glide",
   "description": "Post-operative hand and upper limb rehabilitation prescribed by your hospital hand team.",
   "start_url": "/today",
   "scope": "/",

@@ -68,7 +68,7 @@ export default async function LoginPage({
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-5 py-10">
-      <h1 className="text-2xl font-semibold">Hand Rehabilitation</h1>
+      <h1 className="text-2xl font-semibold">Glide</h1>
 
       {error ? (
         <p role="alert" className="rounded-control bg-urgent-quiet p-3 text-base">

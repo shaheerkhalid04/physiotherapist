@@ -1,6 +1,6 @@
 # PLAN
 
-Remote post-operative hand and upper limb physiotherapy web application.
+Glide: remote post-operative hand and upper limb physiotherapy.
 
 ## 1. Purpose and governing constraint
 

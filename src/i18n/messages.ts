@@ -20,7 +20,7 @@ export function isRtl(locale: Locale): boolean {
 
 export const messages = {
   en: {
-    "app.name": "Hand Rehabilitation",
+    "app.name": "Glide",
     "app.disclaimer":
       "This app supports your recovery. It does not replace review by your surgeon.",
 
@@ -98,7 +98,7 @@ export const messages = {
   },
 
   ur: {
-    "app.name": "ہاتھ کی بحالی",
+    "app.name": "گلائیڈ",
     "app.disclaimer":
       "یہ ایپ آپ کی بحالی میں مدد کرتی ہے۔ یہ آپ کے سرجن کے معائنے کا متبادل نہیں ہے۔",
 

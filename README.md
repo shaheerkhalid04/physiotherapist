@@ -1,4 +1,4 @@
-# Remote post-operative hand and upper limb physiotherapy
+# Glide
 
 A web application that lets post-operative hand and upper limb patients carry out
 surgeon-prescribed rehabilitation at home, log range of motion and pain, and be monitored
