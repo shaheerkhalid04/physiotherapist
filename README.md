@@ -198,7 +198,11 @@ create the duplicate records the acceptance criteria forbid.
 ## Deployment
 
 1. Provision Postgres and set `DATABASE_URL`.
-2. Set `AUTH_SECRET` (`npx auth secret`), `AUTH_URL`, and `CRON_SECRET`.
+2. Set `AUTH_SECRET` (`npx auth secret`), `CRON_SECRET`, `AUTH_TRUST_HOST=true`, and
+   `AUTH_URL` set to the origin the app is served from. Getting `AUTH_URL` wrong produces a
+   confusing failure rather than an obvious one: the credentials are accepted and a session
+   is created, then the browser is redirected to `http://localhost:3000` and the user
+   concludes their password is wrong.
 3. Configure the SMS gateway in `src/lib/auth/otp.ts` and set `SMS_PROVIDER`, `SMS_API_KEY`
    and `SMS_SENDER_ID`. Until then OTP codes are written to the server log and patients must
    use the PIN fallback.
