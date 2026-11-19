@@ -7,6 +7,7 @@ import { writeAudit } from "@/lib/domain/audit";
 import { activePhase, postOpDay, progressionEligible } from "@/lib/domain/prescription";
 import { PainChart, RomChart } from "@/components/clinic/TimelineCharts";
 import { AssistantChat } from "@/components/clinic/AssistantChat";
+import { ASSISTANT_MODEL } from "@/lib/ai/assistant";
 
 /**
  * Patient timeline.
@@ -148,7 +149,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         {pain.length > 0 ? <PainChart data={pain} /> : <p className="text-sm">No symptom logs yet.</p>}
       </section>
 
-      <AssistantChat patientId={patient.id} />
+      <AssistantChat patientId={patient.id} model={ASSISTANT_MODEL} />
 
       <section className="rounded-card border border-border bg-surface p-4">
         <h2 className="font-semibold">Phase</h2>

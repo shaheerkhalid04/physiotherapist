@@ -57,7 +57,7 @@ remotely, so they travel to hospital only when clinically necessary.
 
 | Concern | Service | Where |
 |---|---|---|
-| Clinician chat assistant | Groq, `llama-3.3-70b-versatile` | `src/lib/ai/assistant.ts`, `POST /api/assistant` |
+| Clinician chat assistant | Groq, `openai/gpt-oss-120b` (override with `GROQ_MODEL`) | `src/lib/ai/assistant.ts`, `POST /api/assistant` |
 | API documentation | OpenAPI 3.1 with Swagger UI | `/api-docs`, spec at `/api/openapi` |
 | Error monitoring | Sentry | `sentry.*.config.ts`, `instrumentation*.ts` |
 | Alert notification | Resend | `src/lib/notify/email.ts` |
