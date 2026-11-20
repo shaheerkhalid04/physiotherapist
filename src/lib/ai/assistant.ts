@@ -24,7 +24,14 @@ import Groq from "groq-sdk";
  * itself becomes an input. That is what sanitiseHistory exists for.
  */
 
-const MODEL = "llama-3.3-70b-versatile";
+/**
+ * Groq retired llama-3.3-70b-versatile on 16 Aug 2026. GROQ_MODEL overrides the default.
+ * Read on the server only: the clinic page passes it down for the label.
+ */
+const MODEL = process.env.GROQ_MODEL?.trim() || "openai/gpt-oss-120b";
+
+/** gpt-oss models reason before answering, and that reasoning counts against max_tokens. */
+const IS_REASONING_MODEL = MODEL.startsWith("openai/gpt-oss");
 
 /** Conversation turns kept. Older turns are dropped from the front. */
 export const MAX_HISTORY_TURNS = 12;
@@ -119,7 +126,9 @@ export async function chatStream(
   const completion = await groq.chat.completions.create({
     model: MODEL,
     temperature: 0.2,
-    max_tokens: 500,
+    // The reply is still about 500 tokens; a reasoning model needs room to think first.
+    max_tokens: IS_REASONING_MODEL ? 1200 : 500,
+    ...(IS_REASONING_MODEL ? { reasoning_effort: "low" as const } : {}),
     stream: true,
     messages: buildMessages(digest, history),
   });

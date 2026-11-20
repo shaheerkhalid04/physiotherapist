@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ASSISTANT_MODEL, type ChatMessage } from "@/lib/ai/assistant";
+import type { ChatMessage } from "@/lib/ai/assistant";
 
 /**
  * Clinician-facing chat over a patient's monitoring data.
@@ -21,7 +21,8 @@ const SUGGESTIONS = [
   "What open alerts are there and when were they raised?",
 ];
 
-export function AssistantChat({ patientId }: { patientId: string }) {
+/** `model` comes from the server, so the label names the model that really answers. */
+export function AssistantChat({ patientId, model }: { patientId: string; model: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -94,7 +95,7 @@ export function AssistantChat({ patientId }: { patientId: string }) {
         <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4 shrink-0 fill-current">
           <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 12H9v-2h2zm0-3H9V6h2z" />
         </svg>
-        Machine-written, not a clinical opinion. Model {ASSISTANT_MODEL}.
+        Machine-written, not a clinical opinion. Model {model}.
       </p>
 
       {messages.length > 0 ? (
